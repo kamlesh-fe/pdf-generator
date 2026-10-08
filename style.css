@@ -55,6 +55,105 @@ html, body {
 }
 
 /* ==========================================================================
+   Modern Minimalist Custom Scrollbars
+   ========================================================================== */
+
+/* Universal Scrollbar Baseline (Cross-browser thin scrollbar) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark Theme Scrollbar for Code Editor (VS Code / JetBrains Aesthetic) */
+#html-editor {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+#html-editor::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#html-editor::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+#html-editor::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+  border: 2px solid #0f172a;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+#html-editor::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+  border: 2px solid #0f172a;
+  background-clip: padding-box;
+}
+
+#html-editor::-webkit-scrollbar-thumb:active {
+  background: #64748b;
+}
+
+/* Light Theme Scrollbar for Preview Viewport Canvas */
+.preview-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 rgba(226, 232, 240, 0.6);
+}
+
+.preview-viewport::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.preview-viewport::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+}
+
+.preview-viewport::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+  border: 2px solid rgba(226, 232, 240, 0.6);
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+.preview-viewport::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+  border: 2px solid rgba(226, 232, 240, 0.6);
+  background-clip: padding-box;
+}
+
+/* ==========================================================================
    Header & Toolbar (Fully Responsive Two-Tier Layout)
    ========================================================================== */
 

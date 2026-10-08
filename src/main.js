@@ -476,6 +476,22 @@ function updatePreview() {
   }
   doc.close();
 
+  // Inject sleek custom scrollbar style into iframe document
+  try {
+    if (doc.head && !doc.getElementById('custom-preview-scroll-style')) {
+      const scrollStyle = doc.createElement('style');
+      scrollStyle.id = 'custom-preview-scroll-style';
+      scrollStyle.textContent = `
+        * { scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.45) transparent; }
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+      `;
+      doc.head.appendChild(scrollStyle);
+    }
+  } catch (e) {}
+
   // Apply scale to preview iframe
   applyScaleToPreview();
 
