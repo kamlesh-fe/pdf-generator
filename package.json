@@ -1,0 +1,17 @@
+{
+  "name": "html-pdf-generator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.11",
+    "jspdf": "^2.5.2"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}

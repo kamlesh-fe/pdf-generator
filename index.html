@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML to PDF Converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </div>
+      <div class="brand-title">
+        <h1>HTML to PDF</h1>
+        <span class="brand-pill">Client-side &amp; Fast</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Template Selector -->
+      <div class="control-item">
+        <label for="template-select" class="sr-only">Sample Template</label>
+        <select id="template-select" class="select-input" title="Load sample template">
+          <option value="" disabled>-- Load Sample --</option>
+          <option value="invoice" selected>Sample: Invoice</option>
+          <option value="report">Sample: Report</option>
+          <option value="resume">Sample: Resume</option>
+        </select>
+      </div>
+
+      <!-- Upload HTML file -->
+      <label class="btn btn-secondary upload-btn" title="Upload local .html file">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <span>Upload</span>
+        <input type="file" id="file-input" accept=".html,.htm" style="display: none;">
+      </label>
+
+      <!-- Clear Editor -->
+      <button id="clear-btn" class="btn btn-ghost" title="Clear HTML code">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        <span>Clear</span>
+      </button>
+
+      <div class="divider"></div>
+
+      <!-- Page Size & Orientation -->
+      <div class="control-item">
+        <select id="page-size" class="select-input" title="Paper Size">
+          <option value="a4" selected>A4</option>
+          <option value="letter">Letter</option>
+          <option value="legal">Legal</option>
+        </select>
+      </div>
+
+      <div class="control-item">
+        <select id="page-orientation" class="select-input" title="Page Orientation">
+          <option value="portrait" selected>Portrait</option>
+          <option value="landscape">Landscape</option>
+        </select>
+      </div>
+
+      <!-- Filename input -->
+      <div class="filename-wrapper" title="Output PDF filename">
+        <input type="text" id="filename-input" class="text-input" value="invoice_INV-2026-001.pdf" placeholder="document.pdf" spellcheck="false">
+      </div>
+
+      <!-- Print Button -->
+      <button id="print-btn" class="btn btn-secondary" title="Print or save using browser dialog (vector fidelity)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        <span>Print</span>
+      </button>
+
+      <!-- Primary Action: Download PDF -->
+      <button id="download-btn" class="btn btn-primary" title="Download compiled PDF file">
+        <span class="btn-spinner" id="btn-spinner"></span>
+        <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span id="download-text">Download PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace: Split View -->
+  <main class="app-main">
+    
+    <!-- Left Pane: HTML Source Code -->
+    <section class="pane editor-pane" id="editor-dropzone">
+      <div class="pane-header">
+        <div class="pane-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <h2>HTML Source</h2>
+        </div>
+        
+        <div class="pane-meta">
+          <span id="editor-stats">0 lines &bull; 0 chars</span>
+          <button id="copy-btn" class="icon-btn" title="Copy HTML to clipboard">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-container">
+        <textarea id="html-editor" spellcheck="false" placeholder="Write or paste your HTML code here... (CSS & styles are supported)"></textarea>
+        <!-- Drag & Drop overlay indicator -->
+        <div class="drop-overlay" id="drop-overlay">
+          <div class="drop-message">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p>Drop HTML file to load</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Pane: Live Document Preview -->
+    <section class="pane preview-pane">
+      <div class="pane-header">
+        <div class="pane-title">
+          <span class="live-dot"></span>
+          <h2>Live PDF Preview</h2>
+        </div>
+
+        <div class="preview-actions">
+          <span id="page-badge" class="page-badge">A4 Portrait</span>
+          <div class="zoom-bar">
+            <button id="zoom-out" class="zoom-btn" title="Zoom Out">&minus;</button>
+            <span id="zoom-value" class="zoom-value">100%</span>
+            <button id="zoom-in" class="zoom-btn" title="Zoom In">&plus;</button>
+            <button id="zoom-reset" class="zoom-btn reset-btn" title="Reset Zoom">Fit</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-viewport" id="preview-viewport">
+        <div class="paper-container" id="paper-container">
+          <div class="paper-sheet a4 portrait" id="paper-sheet">
+            <iframe id="preview-frame" title="PDF Document Preview"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast">
+    <div class="toast-icon" id="toast-icon"></div>
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <!-- Main Application Entry (Vite Module) -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
