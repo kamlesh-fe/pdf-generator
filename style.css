@@ -49,38 +49,49 @@ html, body {
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 /* ==========================================================================
-   Header & Toolbar
+   Header & Toolbar (Fully Responsive Two-Tier Layout)
    ========================================================================== */
 
 .app-header {
-  height: 58px;
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 30;
+  width: 100%;
+}
+
+/* Top Row: Brand + View Switcher + Primary CTAs (Always Visible on Any Screen!) */
+.header-top-row {
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
   gap: 12px;
-  flex-shrink: 0;
-  z-index: 20;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .header-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,10 +105,11 @@ html, body {
 }
 
 .brand-title h1 {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
 .brand-pill {
@@ -106,8 +118,8 @@ html, body {
   color: var(--primary);
   background-color: #eff6ff;
   border: 1px solid #dbeafe;
-  padding: 2px 7px;
-  border-radius: 12px;
+  padding: 1px 6px;
+  border-radius: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -121,6 +133,7 @@ html, body {
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
+  flex-shrink: 0;
 }
 
 .view-btn {
@@ -137,6 +150,7 @@ html, body {
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap;
 }
 
 .view-btn:hover {
@@ -149,29 +163,51 @@ html, body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.header-controls {
+/* Primary Action Buttons */
+.header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Bottom Row: Document Settings Toolbar (Scrollable on Mobile) */
+.header-tools-row {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  background-color: #fafbfc;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.header-tools-row::-webkit-scrollbar {
+  display: none;
 }
 
 .divider {
   width: 1px;
-  height: 24px;
+  height: 20px;
   background-color: var(--border-light);
   margin: 0 2px;
+  flex-shrink: 0;
 }
 
 /* Form Controls */
 .control-item {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .select-input, .text-input {
-  height: 34px;
+  height: 32px;
   padding: 0 10px;
   font-family: var(--font-sans);
   font-size: 12px;
@@ -186,7 +222,7 @@ html, body {
 
 .select-input {
   cursor: pointer;
-  padding-right: 24px;
+  padding-right: 22px;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -204,14 +240,15 @@ html, body {
 
 .filename-wrapper {
   position: relative;
+  flex-shrink: 0;
 }
 
 .filename-wrapper .text-input {
-  width: 175px;
+  width: 170px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: #334155;
-  background-color: #f8fafc;
+  background-color: #ffffff;
 }
 
 /* Buttons */
@@ -220,7 +257,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
+  height: 32px;
   padding: 0 12px;
   font-family: var(--font-sans);
   font-size: 12px;
@@ -231,6 +268,7 @@ html, body {
   transition: all 0.15s ease;
   white-space: nowrap;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .btn-primary {
@@ -285,7 +323,7 @@ html, body {
 
 .icon-only-btn {
   padding: 0 8px;
-  height: 34px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -340,9 +378,11 @@ html, body {
    ========================================================================== */
 
 .app-main {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  height: calc(100vh - 58px);
   overflow: hidden;
+  width: 100%;
   transition: all 0.2s ease;
 }
 
@@ -399,7 +439,7 @@ html, body {
 }
 
 .pane-header {
-  height: 42px;
+  height: 40px;
   padding: 0 14px;
   display: flex;
   align-items: center;
@@ -462,7 +502,7 @@ html, body {
 .pane-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 #editor-stats {
@@ -477,7 +517,7 @@ html, body {
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  padding: 5px;
+  padding: 4px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -553,7 +593,7 @@ html, body {
 
 /* ==========================================================================
    Right Pane: PDF Preview
-   ========================================================================== */
+   ========================================================================= */
 
 .preview-pane {
   background-color: var(--bg-subtle);
@@ -829,32 +869,34 @@ html, body {
    Mobile & Responsive Adjustments
    ========================================================================== */
 
-@media (max-width: 1100px) {
-  .app-header {
-    height: auto;
-    padding: 10px 14px;
-    flex-wrap: wrap;
+@media (max-width: 900px) {
+  .header-top-row {
+    padding: 0 12px;
     gap: 8px;
   }
   
-  .header-controls {
-    flex-wrap: wrap;
-    width: 100%;
+  .header-tools-row {
+    padding: 0 12px;
+    gap: 6px;
   }
-
-  .view-switch-group {
-    order: 3;
+  
+  .brand-pill {
+    display: none;
+  }
+  
+  .filename-wrapper .text-input {
+    width: 140px;
   }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 768px) {
   .app-main {
     flex-direction: column;
     height: auto;
     overflow-y: auto;
   }
   
-  .editor-pane {
+  .app-main.view-split .editor-pane {
     width: 100% !important;
     min-width: 100% !important;
     height: 420px;
@@ -862,8 +904,48 @@ html, body {
     border-bottom: 1px solid var(--border-light);
   }
   
-  .preview-pane {
+  .app-main.view-split .preview-pane {
     width: 100% !important;
     height: 600px;
+  }
+}
+
+@media (max-width: 650px) {
+  .header-top-row {
+    height: 46px;
+    padding: 0 8px;
+    gap: 6px;
+  }
+  
+  .brand-title h1 {
+    font-size: 13px;
+  }
+  
+  .view-btn {
+    padding: 3px 6px;
+  }
+  
+  .view-btn .view-btn-text {
+    display: none; /* Show only icons on small screens */
+  }
+  
+  .btn {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  
+  .select-input, .text-input {
+    height: 30px;
+    font-size: 11px;
+  }
+  
+  .header-tools-row {
+    height: 38px;
+    padding: 0 8px;
+  }
+
+  #editor-stats {
+    display: none; /* Hide character count on tiny mobile screens to avoid crowding header */
   }
 }
