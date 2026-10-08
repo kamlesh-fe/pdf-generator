@@ -1,5 +1,5 @@
 /* ==========================================================================
-   HTML to PDF Converter - Modern Minimalist Stylesheet
+   HTML to PDF Converter - Modern Minimalist Stylesheet Studio
    ========================================================================== */
 
 :root {
@@ -32,7 +32,7 @@
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-  --shadow-paper: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
+  --shadow-paper: 0 12px 30px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
   --shadow-toast: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 }
 
@@ -64,7 +64,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
   z-index: 20;
 }
@@ -112,6 +112,43 @@ html, body {
   letter-spacing: 0.04em;
 }
 
+/* Layout View Switcher Group */
+.view-switch-group {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.view-btn:hover {
+  color: var(--text-main);
+}
+
+.view-btn.active {
+  background-color: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
 .header-controls {
   display: flex;
   align-items: center;
@@ -123,7 +160,7 @@ html, body {
   width: 1px;
   height: 24px;
   background-color: var(--border-light);
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 /* Form Controls */
@@ -170,7 +207,7 @@ html, body {
 }
 
 .filename-wrapper .text-input {
-  width: 180px;
+  width: 175px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: #334155;
@@ -240,6 +277,30 @@ html, body {
   cursor: pointer;
 }
 
+.action-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-only-btn {
+  padding: 0 8px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.btn-tip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary);
+  background: #eff6ff;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 /* Spinner */
 .btn-spinner {
   display: none;
@@ -275,13 +336,14 @@ html, body {
 }
 
 /* ==========================================================================
-   Main Split Layout
+   Main Layout & View Switcher Modes
    ========================================================================== */
 
 .app-main {
   display: flex;
   height: calc(100vh - 58px);
   overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .pane {
@@ -291,10 +353,46 @@ html, body {
   overflow: hidden;
 }
 
-/* Left Pane: Editor */
-.editor-pane {
+/* View Mode 1: Split View (Default 50/50) */
+.app-main.view-split .editor-pane {
   width: 50%;
-  min-width: 400px;
+  min-width: 380px;
+  display: flex;
+}
+
+.app-main.view-split .preview-pane {
+  flex: 1;
+  display: flex;
+}
+
+/* View Mode 2: Editor Only (Code Focus) */
+.app-main.view-editor .editor-pane {
+  width: 100%;
+  min-width: 100%;
+  border-right: none;
+  display: flex;
+}
+
+.app-main.view-editor .preview-pane {
+  display: none !important;
+}
+
+/* View Mode 3: Preview Only (Document Focus) */
+.app-main.view-preview .editor-pane {
+  display: none !important;
+}
+
+.app-main.view-preview .preview-pane {
+  width: 100%;
+  flex: 1;
+  display: flex;
+}
+
+/* ==========================================================================
+   Left Pane: Editor
+   ========================================================================== */
+
+.editor-pane {
   background-color: var(--editor-bg);
   border-right: 1px solid var(--border-light);
   position: relative;
@@ -330,16 +428,48 @@ html, body {
   color: #94a3b8;
 }
 
+/* Auto-Save Indicator */
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.12);
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: 6px;
+  transition: all 0.2s ease;
+}
+
+.save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.save-indicator.saving {
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+.save-indicator.saving .save-dot {
+  background-color: #f59e0b;
+}
+
 .pane-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 #editor-stats {
   font-size: 11px;
   font-family: var(--font-mono);
   color: #64748b;
+  margin-right: 4px;
 }
 
 .icon-btn {
@@ -347,7 +477,7 @@ html, body {
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  padding: 5px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -426,7 +556,6 @@ html, body {
    ========================================================================== */
 
 .preview-pane {
-  flex: 1;
   background-color: var(--bg-subtle);
   position: relative;
 }
@@ -444,10 +573,46 @@ html, body {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
+.page-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+  background-color: #e0f2fe;
+  border: 1px solid #bae6fd;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
 .preview-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.guide-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.guide-toggle-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.guide-toggle-btn.active {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: var(--primary);
 }
 
 .page-badge {
@@ -529,7 +694,47 @@ html, body {
   box-shadow: var(--shadow-paper);
   border-radius: 2px;
   overflow: hidden;
+  position: relative;
   transition: width 0.2s ease, min-height 0.2s ease;
+}
+
+/* Page Break Guides Overlay */
+.page-guides-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.page-guides-overlay.hidden {
+  display: none;
+}
+
+.page-break-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 2px dashed rgba(239, 68, 68, 0.75);
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.18);
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding-right: 14px;
+  padding-bottom: 3px;
+  transform: translateY(-1px);
+}
+
+.page-break-tag {
+  background: #ef4444;
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 /* Standard Paper Formats at 96 DPI */
@@ -572,7 +777,7 @@ html, body {
 #preview-frame {
   width: 100%;
   height: 100%;
-  min-height: 1123px;
+  min-height: 100%;
   border: none;
   display: block;
   background: #ffffff;
@@ -624,19 +829,25 @@ html, body {
    Mobile & Responsive Adjustments
    ========================================================================== */
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
   .app-header {
     height: auto;
     padding: 10px 14px;
     flex-wrap: wrap;
+    gap: 8px;
   }
   
   .header-controls {
     flex-wrap: wrap;
     width: 100%;
-    margin-top: 6px;
   }
-  
+
+  .view-switch-group {
+    order: 3;
+  }
+}
+
+@media (max-width: 850px) {
   .app-main {
     flex-direction: column;
     height: auto;
@@ -644,19 +855,15 @@ html, body {
   }
   
   .editor-pane {
-    width: 100%;
-    min-width: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
     height: 420px;
     border-right: none;
     border-bottom: 1px solid var(--border-light);
   }
   
   .preview-pane {
-    width: 100%;
+    width: 100% !important;
     height: 600px;
-  }
-  
-  .filename-wrapper .text-input {
-    width: 130px;
   }
 }

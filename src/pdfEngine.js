@@ -2,7 +2,7 @@ import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 /**
- * Paper dimensions in millimeters
+ * Standard paper dimensions in millimeters
  */
 const PAPER_SIZES_MM = {
   a4: { portrait: [210, 297], landscape: [297, 210] },
@@ -14,7 +14,9 @@ const PAPER_SIZES_MM = {
  * Standard 96 DPI pixel widths for each format
  */
 export function getPaperPixelDimensions(size = 'a4', orientation = 'portrait') {
-  const [widthMm, heightMm] = PAPER_SIZES_MM[size]?.[orientation] || PAPER_SIZES_MM.a4.portrait;
+  const sizeKey = (size || 'a4').toLowerCase();
+  const orientKey = (orientation || 'portrait').toLowerCase();
+  const [widthMm, heightMm] = PAPER_SIZES_MM[sizeKey]?.[orientKey] || PAPER_SIZES_MM.a4.portrait;
   const mmToPx = 96 / 25.4; // ~3.7795 px per mm
   return {
     widthPx: Math.round(widthMm * mmToPx),
@@ -25,16 +27,16 @@ export function getPaperPixelDimensions(size = 'a4', orientation = 'portrait') {
 }
 
 /**
- * High-Fidelity HTML to PDF Exporter
- * Uses html-to-image (SVG ForeignObject) + jsPDF for 100% visual fidelity
- * Eliminates html2canvas flexbox/grid/clipping bugs.
+ * High-Fidelity Client-Side Fallback Exporter
+ * Uses html-to-image + discrete canvas slicing per page in jsPDF
+ * Prevents image bleed, margin overflow, and memory/file bloat.
  */
 export async function generatePdfFromIframe(iframe, options = {}) {
   const {
     filename = 'document.pdf',
     pageSize = 'a4',
     orientation = 'portrait',
-    marginMm = 8,
+    marginMm = 0,
     pixelRatio = 2
   } = options;
 
@@ -43,14 +45,14 @@ export async function generatePdfFromIframe(iframe, options = {}) {
     throw new Error('Preview document body not accessible');
   }
 
-  // 1. Wait for all images inside iframe to fully load
+  // 1. Wait for all images inside iframe to fully resolve
   const images = Array.from(doc.images || []);
   await Promise.all(images.map(img => {
     if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
     return new Promise(resolve => {
       img.onload = resolve;
       img.onerror = resolve;
-      setTimeout(resolve, 3000);
+      setTimeout(resolve, 2500);
     });
   }));
 
@@ -63,7 +65,7 @@ export async function generatePdfFromIframe(iframe, options = {}) {
     }
   }
 
-  // 3. Ensure exact print color adjustment is applied
+  // 3. Inject exact print color adjustment style if not already present
   let printStyle = doc.getElementById('print-color-adjust-style');
   if (!printStyle) {
     printStyle = doc.createElement('style');
@@ -77,82 +79,88 @@ export async function generatePdfFromIframe(iframe, options = {}) {
     doc.head.appendChild(printStyle);
   }
 
-  // 4. Capture target element: doc.documentElement (contains full styled HTML)
+  const { widthMm, heightMm, widthPx } = getPaperPixelDimensions(pageSize, orientation);
   const targetElement = doc.body;
 
-  // Paper metrics
-  const { widthMm, heightMm, widthPx } = getPaperPixelDimensions(pageSize, orientation);
+  const scrollWidth = Math.max(doc.documentElement.scrollWidth, targetElement.scrollWidth, widthPx);
+  const scrollHeight = Math.max(doc.documentElement.scrollHeight, targetElement.scrollHeight);
 
-  // 5. Generate high-resolution PNG using html-to-image
+  // 4. Generate high-resolution PNG using html-to-image
   const dataUrl = await toPng(targetElement, {
     pixelRatio: pixelRatio,
     backgroundColor: '#ffffff',
     cacheBust: true,
-    width: targetElement.scrollWidth || widthPx,
-    height: targetElement.scrollHeight,
+    width: scrollWidth,
+    height: scrollHeight,
     style: {
       margin: '0',
       transform: 'none',
-      width: (targetElement.scrollWidth || widthPx) + 'px'
+      width: `${scrollWidth}px`
     }
   });
 
-  // 6. Build PDF document using jsPDF
+  // 5. Load image to compute exact source pixel dimensions
+  const img = new Image();
+  img.src = dataUrl;
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+  });
+
+  const imgWidthPx = img.naturalWidth;
+  const imgHeightPx = img.naturalHeight;
+
+  // 6. Build PDF document using jsPDF with discrete sliced pages
   const pdf = new jsPDF({
     unit: 'mm',
     format: [widthMm, heightMm],
     orientation: orientation
   });
 
-  // Usable printable dimensions
-  const printableWidthMm = widthMm - (marginMm * 2);
-  const printableHeightMm = heightMm - (marginMm * 2);
+  const printableWidthMm = Math.max(10, widthMm - (marginMm * 2));
+  const printableHeightMm = Math.max(10, heightMm - (marginMm * 2));
 
-  // Load image to calculate exact aspect ratio
-  const img = new Image();
-  img.src = dataUrl;
-  await new Promise(resolve => {
-    img.onload = resolve;
-  });
+  // Determine how many source image pixels correspond to one printable page height
+  const pxPerMm = imgWidthPx / printableWidthMm;
+  const pageHeightInSourcePx = Math.floor(printableHeightMm * pxPerMm);
+  const totalPages = Math.max(1, Math.ceil(imgHeightPx / pageHeightInSourcePx));
 
-  const imgWidthPx = img.naturalWidth;
-  const imgHeightPx = img.naturalHeight;
-  const totalImgHeightMm = (imgHeightPx * printableWidthMm) / imgWidthPx;
-
-  // Single-page or multi-page pagination
-  if (totalImgHeightMm <= printableHeightMm + 2) {
-    // Fits on a single page
-    pdf.addImage(dataUrl, 'PNG', marginMm, marginMm, printableWidthMm, totalImgHeightMm, undefined, 'FAST');
-  } else {
-    // Multi-page handling: slice the canvas image across pages cleanly
-    let remainingHeightMm = totalImgHeightMm;
-    let pageOffsetMm = 0;
-    let isFirstPage = true;
-
-    while (remainingHeightMm > 0) {
-      if (!isFirstPage) {
-        pdf.addPage([widthMm, heightMm], orientation);
-      }
-      isFirstPage = false;
-
-      // Draw the image slice with negative Y offset for subsequent pages
-      pdf.addImage(
-        dataUrl,
-        'PNG',
-        marginMm,
-        marginMm - pageOffsetMm,
-        printableWidthMm,
-        totalImgHeightMm,
-        undefined,
-        'FAST'
-      );
-
-      pageOffsetMm += printableHeightMm;
-      remainingHeightMm -= printableHeightMm;
+  for (let i = 0; i < totalPages; i++) {
+    if (i > 0) {
+      pdf.addPage([widthMm, heightMm], orientation);
     }
+
+    const sy = i * pageHeightInSourcePx;
+    const sh = Math.min(pageHeightInSourcePx, imgHeightPx - sy);
+    const sliceHeightMm = (sh / imgWidthPx) * printableWidthMm;
+
+    // Create a cleanly isolated canvas slice for this page
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = imgWidthPx;
+    sliceCanvas.height = sh;
+    const ctx = sliceCanvas.getContext('2d');
+
+    // Fill white background to avoid transparent artifacts
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+
+    // Draw only this page's portion from the source image
+    ctx.drawImage(img, 0, sy, imgWidthPx, sh, 0, 0, imgWidthPx, sh);
+
+    const sliceDataUrl = sliceCanvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(
+      sliceDataUrl,
+      'JPEG',
+      marginMm,
+      marginMm,
+      printableWidthMm,
+      sliceHeightMm,
+      undefined,
+      'FAST'
+    );
   }
 
-  // 7. Save the PDF file
+  // 7. Save the generated PDF
   pdf.save(filename);
   return true;
 }

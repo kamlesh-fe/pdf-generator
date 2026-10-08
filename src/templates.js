@@ -7,6 +7,8 @@ export const TEMPLATES = {
   invoice: {
     name: "Commercial Invoice",
     filename: "invoice_INV-2026-001.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
     html: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -232,6 +234,8 @@ export const TEMPLATES = {
   report: {
     name: "Executive Report",
     filename: "executive_summary_q3.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
     html: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -418,6 +422,8 @@ export const TEMPLATES = {
   resume: {
     name: "Professional Resume",
     filename: "resume_sarah_connor.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
     html: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -562,6 +568,384 @@ export const TEMPLATES = {
     <span class="skill-pill">PDF Generation</span>
     <span class="skill-pill">REST &amp; GraphQL APIs</span>
     <span class="skill-pill">Docker &amp; CI/CD</span>
+  </div>
+</body>
+</html>`
+  },
+
+  certificate: {
+    name: "Award Certificate (Landscape)",
+    filename: "certificate_of_achievement.pdf",
+    pageSize: "a4",
+    orientation: "landscape",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificate of Achievement</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    @page {
+      size: A4 landscape;
+      margin: 12mm;
+    }
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: #faf8f5;
+      color: #2c2316;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .cert-frame {
+      width: 100%;
+      height: 100%;
+      border: 6px double #b8860b;
+      outline: 2px solid #d4af37;
+      outline-offset: -12px;
+      background: #ffffff;
+      padding: 36px 48px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: inset 0 0 40px rgba(184, 134, 11, 0.05);
+    }
+    .kicker {
+      font-family: -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #996515;
+    }
+    h1 {
+      font-size: 34px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: #1a150e;
+      margin: 10px 0 4px;
+      text-transform: uppercase;
+    }
+    .subtitle {
+      font-size: 13px;
+      font-style: italic;
+      color: #7a6a52;
+    }
+    .recipient {
+      font-size: 32px;
+      font-family: 'Brush Script MT', 'Bickham Script Pro', cursive, serif;
+      color: #8b6508;
+      border-bottom: 2px solid #d4af37;
+      display: inline-block;
+      margin: 16px auto;
+      padding: 0 40px 6px;
+      min-width: 380px;
+    }
+    .reason {
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 680px;
+      margin: 0 auto;
+      color: #4a3e2e;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      margin-top: 30px;
+      padding: 0 30px;
+    }
+    .signature-block {
+      text-align: center;
+      width: 200px;
+    }
+    .sig-line {
+      border-top: 1px solid #7a6a52;
+      margin-top: 30px;
+      padding-top: 6px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #665239;
+      font-family: -apple-system, sans-serif;
+    }
+    .seal {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #f3e5ab 0%, #d4af37 70%, #aa820a 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: 3px double #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="cert-frame">
+    <div>
+      <div class="kicker">Apex Institute of Technology</div>
+      <h1>Certificate of Achievement</h1>
+      <div class="subtitle">This certificate is proudly conferred upon</div>
+    </div>
+
+    <div>
+      <div class="recipient">Alexander Morgan</div>
+      <p class="reason">
+        For extraordinary proficiency and groundbreaking contributions in Full-Stack Architecture, Clean Code Engineering, and Scalable Cloud Systems.
+      </p>
+    </div>
+
+    <div class="meta-row">
+      <div class="signature-block">
+        <div class="sig-line">Dr. Eleanor Vance<br><small>Dean of Academics</small></div>
+      </div>
+      <div class="seal">VERIFIED</div>
+      <div class="signature-block">
+        <div class="sig-line">October 08, 2026<br><small>Date of Issuance</small></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+  },
+
+  payslip: {
+    name: "Salary Payslip",
+    filename: "payslip_october_2026.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payslip - October 2026</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1e293b;
+      margin: 0;
+      padding: 24px;
+      font-size: 12px;
+      line-height: 1.5;
+      background: #ffffff;
+    }
+    .corp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .corp-title h1 {
+      margin: 0;
+      font-size: 20px;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+    .corp-title p {
+      margin: 2px 0 0;
+      color: #64748b;
+      font-size: 11px;
+    }
+    .slip-badge {
+      text-align: right;
+    }
+    .slip-badge span {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #0f172a;
+    }
+    .emp-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .emp-table td {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      font-size: 11.5px;
+    }
+    .emp-table td.label {
+      font-weight: 600;
+      color: #475569;
+      background: #f1f5f9;
+      width: 25%;
+    }
+    .financials-grid {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .fin-card {
+      flex: 1;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .fin-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .fin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .fin-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .fin-table tr:last-child td {
+      border-bottom: none;
+      font-weight: 700;
+      background: #f8fafc;
+      border-top: 1px solid #cbd5e1;
+    }
+    .right { text-align: right; }
+    .net-banner {
+      background: #ecfdf5;
+      border: 2px solid #10b981;
+      border-radius: 8px;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .net-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #065f46;
+    }
+    .net-amount {
+      font-size: 22px;
+      font-weight: 800;
+      color: #047857;
+    }
+    .footer-note {
+      font-size: 10.5px;
+      color: #94a3b8;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="corp-header">
+    <div class="corp-title">
+      <h1>METROLOGIC SYSTEMS PVT. LTD.</h1>
+      <p>CIN: U72200DL2018PTC123456 &bull; Cyber City, Gurugram, India</p>
+    </div>
+    <div class="slip-badge">
+      <span>PAYSLIP: OCT 2026</span>
+    </div>
+  </div>
+
+  <table class="emp-table">
+    <tr>
+      <td class="label">Employee Name:</td>
+      <td>Rohan Sharma</td>
+      <td class="label">Employee ID:</td>
+      <td>MET-2024-892</td>
+    </tr>
+    <tr>
+      <td class="label">Designation:</td>
+      <td>Senior Product Designer</td>
+      <td class="label">Department:</td>
+      <td>UI/UX &amp; Creative</td>
+    </tr>
+    <tr>
+      <td class="label">Bank Account:</td>
+      <td>HDFC Bank &bull;&bull;&bull;&bull; 4091</td>
+      <td class="label">PAN / UAN:</td>
+      <td>ABCDE1234F / 101234567890</td>
+    </tr>
+    <tr>
+      <td class="label">Working Days:</td>
+      <td>31 Days</td>
+      <td class="label">Paid Days:</td>
+      <td>31 Days (0 LOP)</td>
+    </tr>
+  </table>
+
+  <div class="financials-grid">
+    <div class="fin-card">
+      <div class="fin-header">
+        <span>Earnings</span>
+        <span>Amount (₹)</span>
+      </div>
+      <table class="fin-table">
+        <tr><td>Basic Salary</td><td class="right">₹55,000</td></tr>
+        <tr><td>House Rent Allowance (HRA)</td><td class="right">₹22,000</td></tr>
+        <tr><td>Special Allowance</td><td class="right">₹18,500</td></tr>
+        <tr><td>Performance Bonus</td><td class="right">₹7,500</td></tr>
+        <tr><td>Total Gross Earnings</td><td class="right">₹1,03,000</td></tr>
+      </table>
+    </div>
+
+    <div class="fin-card">
+      <div class="fin-header" style="background: #334155;">
+        <span>Deductions</span>
+        <span>Amount (₹)</span>
+      </div>
+      <table class="fin-table">
+        <tr><td>Provident Fund (EPF Employee)</td><td class="right">₹1,800</td></tr>
+        <tr><td>Professional Tax</td><td class="right">₹200</td></tr>
+        <tr><td>Income Tax (TDS)</td><td class="right">₹8,400</td></tr>
+        <tr><td>Health Insurance</td><td class="right">₹1,200</td></tr>
+        <tr><td>Total Deductions</td><td class="right">₹11,600</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="net-banner">
+    <div class="net-label">
+      Net Disbursed Take-Home Pay
+      <div style="font-size: 11px; font-weight: normal; color: #047857;">Ninety-One Thousand Four Hundred Rupees Only</div>
+    </div>
+    <div class="net-amount">₹91,400.00</div>
+  </div>
+
+  <div class="footer-note">
+    This payslip is system-generated and does not require a physical signature. Direct payroll queries to hr@metrologic.io.
   </div>
 </body>
 </html>`
