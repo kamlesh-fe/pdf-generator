@@ -213,8 +213,17 @@
         </div>
       </div>
 
-      <div class="editor-container">
-        <textarea id="html-editor" spellcheck="false" placeholder="Write or paste your HTML code here... (CSS &amp; fonts are supported)"></textarea>
+      <div class="editor-container" id="editor-container">
+        <!-- Line Numbers Gutter -->
+        <div class="line-numbers-gutter" id="line-numbers" aria-hidden="true"></div>
+        
+        <!-- Code Editor Surface -->
+        <div class="code-editor-surface">
+          <!-- Syntax Highlight Layer (Pre/Code) -->
+          <pre class="highlight-layer" id="highlight-layer" aria-hidden="true"><code class="language-html" id="highlight-code"></code></pre>
+          <!-- Interactive Textarea -->
+          <textarea id="html-editor" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="Write or paste your HTML code here... (CSS &amp; fonts are supported)"></textarea>
+        </div>
         <!-- Drag & Drop overlay indicator -->
         <div class="drop-overlay" id="drop-overlay">
           <div class="drop-message">

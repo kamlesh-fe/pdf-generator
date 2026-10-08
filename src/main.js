@@ -1,6 +1,13 @@
 import { generatePdfFromIframe, getPaperPixelDimensions } from './pdfEngine.js';
 import { TEMPLATES } from './templates.js';
 import { toPng } from 'html-to-image';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-markup.js';
+import 'prismjs/components/prism-css.js';
+import 'prismjs/components/prism-javascript.js';
+import beautify from 'js-beautify';
+
+const htmlBeautify = beautify.html || beautify.html_beautify || beautify;
 
 // State
 let currentZoom = 1.0;
@@ -12,6 +19,9 @@ let showPageGuides = true;
 // DOM Elements
 const appMain = document.getElementById('app-main');
 const htmlEditor = document.getElementById('html-editor');
+const highlightLayer = document.getElementById('highlight-layer');
+const highlightCode = document.getElementById('highlight-code');
+const lineNumbers = document.getElementById('line-numbers');
 const previewFrame = document.getElementById('preview-frame');
 const paperSheet = document.getElementById('paper-sheet');
 const paperContainer = document.getElementById('paper-container');
@@ -81,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Initial layout calculation and auto-fit to width
   updateEditorStats();
   updatePaperLayout();
+  updateSyntaxHighlight();
   updatePreview();
   setTimeout(fitToWidth, 150);
 });
@@ -102,8 +113,9 @@ function initTemplateSelect() {
  * Setup All Event Listeners
  */
 function setupEventListeners() {
-  // Live Editor input with debouncing and auto-save
+  // Live Editor input with debouncing, syntax highlight, and auto-save
   htmlEditor.addEventListener('input', () => {
+    updateSyntaxHighlight();
     updateEditorStats();
     markSavingState();
 
@@ -113,6 +125,9 @@ function setupEventListeners() {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(saveToLocalStorage, 600);
   });
+
+  // Synchronize scroll position across highlight layer and line numbers
+  htmlEditor.addEventListener('scroll', syncEditorScroll);
 
   // Editor Tab indentation preserving Undo/Redo
   htmlEditor.addEventListener('keydown', handleEditorIndent);
@@ -266,7 +281,7 @@ function markSavingState() {
 }
 
 /**
- * Format / Beautify HTML Code
+ * Format / Beautify HTML Code using js-beautify
  */
 function formatEditorCode() {
   const code = htmlEditor.value;
@@ -275,75 +290,70 @@ function formatEditorCode() {
     return;
   }
 
-  const formatted = beautifyHTML(code);
+  const formatted = htmlBeautify(code, {
+    indent_size: 2,
+    indent_char: ' ',
+    max_preserve_newlines: 1,
+    preserve_newlines: true,
+    indent_inner_html: true,
+    extra_liners: ['head', 'body', '/html'],
+    wrap_line_length: 0,
+    unformatted: ['b', 'em', 'span', 'strong', 'i']
+  });
+
   htmlEditor.value = formatted;
+  updateSyntaxHighlight();
   updateEditorStats();
   updatePreview();
   saveToLocalStorage();
-  showToast("Code formatted & beautified", 'success');
+  showToast("Code beautified & formatted", 'success');
 }
 
-function beautifyHTML(html) {
-  if (!html) return '';
-  let formatted = '';
-  let indent = 0;
-  const tab = '  ';
+/**
+ * Real-Time Syntax Highlighting using Prism
+ */
+function updateSyntaxHighlight() {
+  if (!highlightCode || !htmlEditor) return;
 
-  // Normalize lines and preserve content
-  const lines = html
-    .replace(/>\s*</g, '>\n<')
-    .replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, (m, open, content, close) => {
-      return `${open}\n${content.trim()}\n${close}`;
-    })
-    .split('\n');
-
-  const voidTags = new Set([
-    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
-    'link', 'meta', 'param', 'source', 'track', 'wbr', '!doctype'
-  ]);
-
-  let inStyle = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i].trim();
-    if (!rawLine) continue;
-
-    if (rawLine.startsWith('<style')) {
-      inStyle = true;
-      formatted += tab.repeat(indent) + rawLine + '\n';
-      indent++;
-      continue;
-    }
-    if (rawLine.startsWith('</style>')) {
-      inStyle = false;
-      indent = Math.max(0, indent - 1);
-      formatted += tab.repeat(indent) + rawLine + '\n';
-      continue;
-    }
-
-    if (inStyle) {
-      formatted += tab.repeat(indent) + rawLine + '\n';
-      continue;
-    }
-
-    if (rawLine.startsWith('</')) {
-      indent = Math.max(0, indent - 1);
-      formatted += tab.repeat(indent) + rawLine + '\n';
-    } else if (rawLine.startsWith('<') && !rawLine.startsWith('<!--')) {
-      const tagMatch = rawLine.match(/<([a-zA-Z0-9\-]+)/);
-      const tagName = tagMatch ? tagMatch[1].toLowerCase() : '';
-      const isSelfClosing = rawLine.endsWith('/>') || voidTags.has(tagName) || rawLine.startsWith('<!');
-
-      formatted += tab.repeat(indent) + rawLine + '\n';
-      if (!isSelfClosing && !rawLine.includes(`</${tagName}>`)) {
-        indent++;
-      }
-    } else {
-      formatted += tab.repeat(indent) + rawLine + '\n';
-    }
+  let codeText = htmlEditor.value;
+  if (codeText.endsWith('\n')) {
+    codeText += ' ';
   }
 
-  return formatted.trim();
+  try {
+    highlightCode.innerHTML = Prism.highlight(codeText, Prism.languages.markup, 'markup');
+  } catch (e) {
+    highlightCode.textContent = codeText;
+  }
+
+  updateLineNumbers();
+  syncEditorScroll();
+}
+
+/**
+ * Update Line Numbers Gutter
+ */
+function updateLineNumbers() {
+  if (!lineNumbers || !htmlEditor) return;
+  const linesCount = (htmlEditor.value.match(/\n/g) || []).length + 1;
+  let nums = '';
+  for (let i = 1; i <= linesCount; i++) {
+    nums += i + '\n';
+  }
+  lineNumbers.textContent = nums;
+}
+
+/**
+ * Synchronize scroll position across layers
+ */
+function syncEditorScroll() {
+  if (highlightLayer) {
+    highlightLayer.scrollTop = htmlEditor.scrollTop;
+    highlightLayer.scrollLeft = htmlEditor.scrollLeft;
+  }
+  if (lineNumbers) {
+    lineNumbers.scrollTop = htmlEditor.scrollTop;
+  }
 }
 
 /**
@@ -370,6 +380,7 @@ function loadTemplate(key) {
 
   updateEditorStats();
   updatePaperLayout();
+  updateSyntaxHighlight();
   updatePreview();
   saveToLocalStorage();
   showToast(`Loaded "${tpl.name}" template`, 'info');
@@ -387,6 +398,7 @@ function clearEditor() {
     filenameInput.value = 'document.pdf';
     isFilenameUserModified = false;
     updateEditorStats();
+    updateSyntaxHighlight();
     updatePreview();
     saveToLocalStorage();
     showToast("Editor cleared", 'info');
@@ -694,6 +706,7 @@ function loadFileContent(file) {
     templateSelect.value = '';
 
     updateEditorStats();
+    updateSyntaxHighlight();
     updatePreview();
     saveToLocalStorage();
     showToast(`Loaded: ${file.name}`, 'success');
