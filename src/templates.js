@@ -1160,8 +1160,8 @@ The combination of spatial tokenization, linear self-attention, and schedule opt
     orientation: "portrait",
     theme: "executive",
     markdown: `---
-title: Feature Spec: EPS Ceiling Proration for Loss of Pay
-subtitle: NCP Days in ECR, EDLI Base, and Statutory Pension Compliance
+title: "Feature Spec: EPS Ceiling Proration for Loss of Pay"
+subtitle: "NCP Days in ECR, EDLI Base, and Statutory Pension Compliance"
 author: Payroll & Compliance Engineering Team
 date: 2026-10-15
 version: 3.1.0-RC
@@ -1197,13 +1197,13 @@ The following state machine governs wage computation for each pay run:
 
 \`\`\`mermaid
 flowchart TD
-    LOP[Attendance: LOP Days Detected] --> CalcPaid[Paid Days = Working Days - LOP]
-    CalcPaid --> CheckZero{Paid Days == 0?}
-    CheckZero -- Yes --> FullNCP[NCP = Calendar Days<br>EPS Wage = 0]
-    CheckZero -- No --> NCPCalc[NCP = Working Days - Paid Days]
-    NCPCalc --> Prorate[Reduced Ceiling = 15000 * (CalDays - NCP) / CalDays]
-    Prorate --> EPSWage[EPS Wage = Min(EPF Wage, Reduced Ceiling)]
-    EPSWage --> Remit[EPS 8.33% Remittance]
+    LOP["Attendance: LOP Days Detected"] --> CalcPaid["Paid Days = Working Days - LOP"]
+    CalcPaid --> CheckZero{"Paid Days == 0?"}
+    CheckZero -- Yes --> FullNCP["NCP = Calendar Days<br>EPS Wage = 0"]
+    CheckZero -- No --> NCPCalc["NCP = Working Days - Paid Days"]
+    NCPCalc --> Prorate["Reduced Ceiling = 15000 * (CalDays - NCP) / CalDays"]
+    Prorate --> EPSWage["EPS Wage = Min(EPF Wage, Reduced Ceiling)"]
+    EPSWage --> Remit["EPS 8.33% Remittance"]
 \`\`\`
 
 <!-- pagebreak -->

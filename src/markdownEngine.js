@@ -77,10 +77,22 @@ export async function compileMarkdown(markdownRaw, options = {}) {
   if (fmMatch) {
     try {
       frontmatter = yaml.load(fmMatch[1]);
-      content = content.slice(fmMatch[0].length);
     } catch (e) {
       console.warn('Frontmatter parsing error:', e);
+      // Resilient line-by-line fallback for titles with unquoted colons
+      try {
+        frontmatter = {};
+        fmMatch[1].split(/\r?\n/).forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx > 0) {
+            const k = line.substring(0, idx).trim();
+            const v = line.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+            if (k) frontmatter[k] = v;
+          }
+        });
+      } catch (e2) {}
     }
+    content = content.slice(fmMatch[0].length);
   }
 
   // 2. Protect and Extract KaTeX Math Equations
@@ -102,8 +114,8 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     return `@@@MATH_BLOCK_${idx}@@@`;
   });
 
-  // Inline math: $ ... $
-  content = content.replace(/\$([^\$\n]+?)\$/g, (m, math) => {
+  // Inline math: $ ... $ (resilient to currency signs and spaces)
+  content = content.replace(/(?<!\\)\$([^\s\$](?:[^$]*?[^\s\$])?)\$(?!\d)/g, (m, math) => {
     const idx = mathInlines.length;
     try {
       const rendered = katex.renderToString(math.trim(), {
@@ -138,7 +150,16 @@ export async function compileMarkdown(markdownRaw, options = {}) {
   const mermaidBlocks = [];
   const renderer = new marked.Renderer();
 
-  renderer.code = function({ text, lang }) {
+  renderer.code = function(arg1, arg2) {
+    let text = '';
+    let lang = '';
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      text = arg1.text || '';
+      lang = arg1.lang || '';
+    } else {
+      text = arg1 || '';
+      lang = arg2 || '';
+    }
     const language = (lang || '').toLowerCase().trim();
 
     // Check for Mermaid diagram
@@ -172,8 +193,25 @@ export async function compileMarkdown(markdownRaw, options = {}) {
   };
 
   // Checkbox Task Lists
-  renderer.checkbox = function({ checked }) {
+  renderer.checkbox = function(arg) {
+    const checked = typeof arg === 'object' && arg !== null ? !!arg.checked : !!arg;
     return `<input type="checkbox" ${checked ? 'checked' : ''} disabled class="task-checkbox"> `;
+  };
+
+  // Heading Anchors with Slug IDs for TOC Navigation
+  renderer.heading = function(arg1, arg2) {
+    let text = '';
+    let depth = 1;
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      text = arg1.text || '';
+      depth = arg1.depth || 1;
+    } else {
+      text = arg1 || '';
+      depth = arg2 || 1;
+    }
+    const cleanText = text.replace(/<[^>]+>/g, '').replace(/[*_`]/g, '');
+    const id = cleanText.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    return `<h${depth} id="${id}">${text}</h${depth}>`;
   };
 
   marked.setOptions({
@@ -182,31 +220,39 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     renderer
   });
 
-  let htmlBody = marked.parse(content);
+  let htmlBody = await marked.parse(content);
 
   // 7. Render Mermaid Diagrams Asynchronously
   for (let i = 0; i < mermaidBlocks.length; i++) {
     const mermaidCode = mermaidBlocks[i];
     let renderedSvg = '';
-    const diagId = `mermaid-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}`;
+    const diagId = `mermaid_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
 
-    try {
-      const result = await mermaid.render(diagId, mermaidCode);
-      renderedSvg = result?.svg || '';
-    } catch (err) {
-      console.warn('Mermaid render error:', err);
-      renderedSvg = `<div class="mermaid-error"><p><strong>Diagram Error:</strong> ${escapeHtml(err.message || 'Syntax error')}</p><pre>${escapeHtml(mermaidCode)}</pre></div>`;
+    if (typeof document === 'undefined') {
+      renderedSvg = `<pre class="mermaid">${escapeHtml(mermaidCode)}</pre>`;
+    } else {
+      try {
+        const result = await mermaid.render(diagId, mermaidCode);
+        renderedSvg = result?.svg || '';
+      } catch (err) {
+        console.warn('Mermaid render error:', err);
+        renderedSvg = `<div class="mermaid-error"><p><strong>Diagram Error:</strong> ${escapeHtml(err.message || 'Syntax error')}</p><pre>${escapeHtml(mermaidCode)}</pre></div>`;
+      } finally {
+        const errEl = document.getElementById(diagId) || document.getElementById(`d${diagId}`);
+        if (errEl) errEl.remove();
+      }
     }
 
-    htmlBody = htmlBody.replace(`@@@MERMAID_BLOCK_${i}@@@`, `<div class="mermaid-diagram-wrapper">${renderedSvg}</div>`);
+    // Use function replacer to prevent special $ patterns from corrupting SVG markup
+    htmlBody = htmlBody.replace(`@@@MERMAID_BLOCK_${i}@@@`, () => `<div class="mermaid-diagram-wrapper">${renderedSvg}</div>`);
   }
 
-  // 8. Restore KaTeX Math Placeholders
+  // 8. Restore KaTeX Math Placeholders (Use function replacers to protect math symbols)
   mathBlocks.forEach((block, idx) => {
-    htmlBody = htmlBody.replace(`@@@MATH_BLOCK_${idx}@@@`, block);
+    htmlBody = htmlBody.replace(`@@@MATH_BLOCK_${idx}@@@`, () => block);
   });
   mathInlines.forEach((inline, idx) => {
-    htmlBody = htmlBody.replace(`@@@MATH_INLINE_${idx}@@@`, inline);
+    htmlBody = htmlBody.replace(`@@@MATH_INLINE_${idx}@@@`, () => inline);
   });
 
   // 9. Build Frontmatter Title Header
@@ -270,6 +316,30 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       margin: 0;
       padding: 0;
       border: none;
+    }
+    @media screen {
+      .page-break {
+        display: block;
+        height: 20px;
+        margin: 24px 0;
+        border-top: 2px dashed #94a3b8;
+        position: relative;
+      }
+      .page-break::after {
+        content: "✂ Page Break (PDF splits here)";
+        position: absolute;
+        top: -11px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 10px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        letter-spacing: 0.03em;
+      }
     }
 
     thead {

@@ -192,8 +192,22 @@ function setupEventListeners() {
     });
   }
 
-  // Live Editor input with debouncing, syntax highlight, and auto-save
+  // Live Editor input with debouncing, syntax highlight, format auto-detection, and auto-save
   htmlEditor.addEventListener('input', () => {
+    const val = htmlEditor.value;
+    // Auto-switch mode if user starts a new document with distinct format syntax
+    if (currentMode === 'html' && val.length >= 3 && val.length <= 80) {
+      if (val.startsWith('# ') || val.startsWith('---') || val.startsWith('> [!')) {
+        switchFormatMode('markdown', true);
+        return;
+      }
+    } else if (currentMode === 'markdown' && val.length >= 8 && val.length <= 80) {
+      if (/^<!DOCTYPE/i.test(val.trim()) || /^<html/i.test(val.trim())) {
+        switchFormatMode('html', true);
+        return;
+      }
+    }
+
     updateSyntaxHighlight();
     updateEditorStats();
     markSavingState();
@@ -203,6 +217,18 @@ function setupEventListeners() {
 
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(saveToLocalStorage, 600);
+  });
+
+  // Paste handler with automatic format detection
+  htmlEditor.addEventListener('paste', () => {
+    setTimeout(() => {
+      const content = htmlEditor.value;
+      const detected = detectDocumentFormat(content);
+      if (detected && detected !== currentMode) {
+        switchFormatMode(detected, true);
+        showToast(`Auto-detected ${detected === 'markdown' ? 'Markdown' : 'HTML'} format`, 'info');
+      }
+    }, 50);
   });
 
   // Synchronize scroll position across highlight layer and line numbers
@@ -370,6 +396,59 @@ function markSavingState() {
 }
 
 /**
+ * Check if the given text matches any built-in sample template
+ */
+function isDefaultSampleContent(text) {
+  if (!text) return true;
+  const normalized = text.trim();
+  for (const key of Object.keys(TEMPLATES)) {
+    if (TEMPLATES[key].html && TEMPLATES[key].html.trim() === normalized) return true;
+  }
+  for (const key of Object.keys(MARKDOWN_TEMPLATES)) {
+    if (MARKDOWN_TEMPLATES[key].markdown && MARKDOWN_TEMPLATES[key].markdown.trim() === normalized) return true;
+  }
+  return false;
+}
+
+/**
+ * Intelligent Document Format Detector (Markdown vs HTML)
+ */
+function detectDocumentFormat(text) {
+  if (!text || text.trim().length < 8) return null;
+  const trimmed = text.trim();
+
+  // Distinct HTML markers
+  const hasHtmlDoctype = /^<!DOCTYPE\s+html/i.test(trimmed);
+  const hasHtmlTag = /<html[\s>]/i.test(trimmed);
+  const hasCommonHtmlStructure = /<(head|body|style|div|section|table|main)[\s>]/i.test(trimmed);
+
+  if (hasHtmlDoctype || (hasHtmlTag && hasCommonHtmlStructure)) {
+    return 'html';
+  }
+
+  // Distinct Markdown markers
+  const hasYamlFrontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n/.test(trimmed);
+  const hasMarkdownHeadings = /(?:^|\n)#{1,6}\s+[\w\d]/m.test(trimmed);
+  const hasGithubAlerts = /(?:^|\n)>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/im.test(trimmed);
+  const hasMermaidFences = /(?:^|\n)```(?:mermaid|js|javascript|ts|typescript|python|bash|css|json)/m.test(trimmed);
+  const hasTaskLists = /(?:^|\n)-\s+\[[ xX]\]\s+/m.test(trimmed);
+  const hasKatexBlocks = /\$\$[\s\S]+?\$\$/.test(trimmed);
+
+  const markdownScore = (hasYamlFrontmatter ? 3 : 0) +
+    (hasMarkdownHeadings ? 2 : 0) +
+    (hasGithubAlerts ? 2 : 0) +
+    (hasMermaidFences ? 2 : 0) +
+    (hasTaskLists ? 2 : 0) +
+    (hasKatexBlocks ? 2 : 0);
+
+  if (markdownScore >= 2 && !hasHtmlDoctype) {
+    return 'markdown';
+  }
+
+  return null;
+}
+
+/**
  * Switch Document Format Mode (HTML vs Markdown)
  */
 function switchFormatMode(newMode, preserveContent = false) {
@@ -380,10 +459,17 @@ function switchFormatMode(newMode, preserveContent = false) {
   applyModeUI(newMode);
   populateTemplateSelect();
 
-  if (!preserveContent) {
+  const currentVal = htmlEditor.value.trim();
+  const hasCustomUserContent = currentVal.length > 0 && !isDefaultSampleContent(currentVal);
+
+  if (preserveContent || hasCustomUserContent) {
+    // Preserve custom user content! Never overwrite custom work
+    templateSelect.value = '';
+  } else {
+    // Only load template or cached draft if editor has no custom content
     const storageKey = newMode === 'markdown' ? STORAGE_KEY_MD : STORAGE_KEY_HTML;
     const cached = localStorage.getItem(storageKey);
-    if (cached && cached.trim().length > 20) {
+    if (cached && cached.trim().length > 20 && !isDefaultSampleContent(cached.trim())) {
       htmlEditor.value = cached;
       templateSelect.value = '';
     } else {
@@ -396,6 +482,7 @@ function switchFormatMode(newMode, preserveContent = false) {
   }
 
   updateEditorStats();
+  updatePaperLayout();
   updateSyntaxHighlight();
   updatePreview();
   showToast(`Switched to ${newMode === 'markdown' ? 'Markdown' : 'HTML'} Mode`, 'info');
@@ -1211,7 +1298,7 @@ async function handleDownloadPDF() {
 }
 
 /**
- * Inspect / Preview Compiled PDF in New Tab
+ * Inspect / Preview Compiled PDF in New Tab (Bypasses popup blocker)
  */
 async function handlePreviewInTab() {
   const content = htmlEditor.value.trim();
@@ -1226,6 +1313,12 @@ async function handlePreviewInTab() {
   const scale = parseFloat(pageScaleSelect?.value || '1');
 
   showToast("Preparing PDF viewer...", 'info');
+
+  // Open window synchronously during click event to satisfy browser popup security policies
+  let newTab = null;
+  try {
+    newTab = window.open('about:blank', '_blank');
+  } catch (e) {}
 
   try {
     const htmlToSend = await getActiveHtml();
@@ -1244,11 +1337,19 @@ async function handlePreviewInTab() {
     if (res.ok) {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      if (newTab && !newTab.closed) {
+        newTab.location.href = url;
+      } else {
+        window.open(url, '_blank');
+      }
       showToast("Opened PDF preview in new tab", 'success');
       return;
+    } else {
+      if (newTab && !newTab.closed) newTab.close();
     }
-  } catch (e) {}
+  } catch (e) {
+    if (newTab && !newTab.closed) newTab.close();
+  }
 
   // Fallback: print preview
   printDocument();
