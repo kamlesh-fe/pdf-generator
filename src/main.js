@@ -146,19 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
  * Populate sample templates dropdown dynamically based on active mode
  */
 function populateTemplateSelect() {
-  templateSelect.innerHTML = '<option value="" disabled>-- Load Sample --</option>';
+  templateSelect.innerHTML = '<option value="" disabled>-- Select Template --</option>';
   if (currentMode === 'markdown') {
     Object.keys(MARKDOWN_TEMPLATES).forEach(key => {
       const opt = document.createElement('option');
       opt.value = key;
-      opt.textContent = `Sample: ${MARKDOWN_TEMPLATES[key].name}`;
+      opt.textContent = MARKDOWN_TEMPLATES[key].name;
       templateSelect.appendChild(opt);
     });
   } else {
     Object.keys(TEMPLATES).forEach(key => {
       const opt = document.createElement('option');
       opt.value = key;
-      opt.textContent = `Sample: ${TEMPLATES[key].name}`;
+      opt.textContent = TEMPLATES[key].name;
       templateSelect.appendChild(opt);
     });
   }

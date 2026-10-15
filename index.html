@@ -115,33 +115,34 @@
     <!-- Bottom Row: Document Settings Toolbar (Scrollable on Mobile, Zero Overflow Clipping) -->
     <div class="header-tools-row">
       <!-- Template Selector -->
-      <div class="control-item">
-        <label for="template-select" class="sr-only">Sample Template</label>
+      <div class="control-item floating-field-group">
+        <label for="template-select" class="floating-label">Template</label>
         <select id="template-select" class="select-input" title="Load sample document template">
-          <option value="" disabled>-- Load Sample --</option>
-          <option value="invoice" selected>Sample: Invoice</option>
-          <option value="report">Sample: Report</option>
-          <option value="resume">Sample: Resume</option>
-          <option value="certificate">Sample: Certificate</option>
-          <option value="payslip">Sample: Payslip</option>
+          <option value="" disabled>-- Select Template --</option>
+          <option value="invoice" selected>Invoice</option>
+          <option value="report">Executive Report</option>
+          <option value="resume">Resume</option>
+          <option value="certificate">Award Certificate</option>
+          <option value="payslip">Salary Payslip</option>
         </select>
       </div>
 
       <!-- Markdown Theme Selector (Visible in Markdown Mode) -->
-      <div class="control-item" id="md-theme-wrapper" style="display: none;">
-        <label for="md-theme-select" class="sr-only">Markdown Theme</label>
+      <div class="control-item floating-field-group" id="md-theme-wrapper" style="display: none;">
+        <label for="md-theme-select" class="floating-label">Theme</label>
         <select id="md-theme-select" class="select-input" title="Markdown PDF Typography & Layout Theme">
-          <option value="github" selected>Theme: GitHub Modern</option>
-          <option value="academic">Theme: Academic Paper (arXiv)</option>
-          <option value="executive">Theme: Executive Spec</option>
-          <option value="minimalist">Theme: Minimalist Clean</option>
+          <option value="github" selected>GitHub Modern</option>
+          <option value="academic">Academic Paper (arXiv)</option>
+          <option value="executive">Executive Spec</option>
+          <option value="minimalist">Minimalist Clean</option>
         </select>
       </div>
 
       <div class="divider"></div>
 
       <!-- Page Size & Orientation -->
-      <div class="control-item">
+      <div class="control-item floating-field-group">
+        <label for="page-size" class="floating-label">Page Size</label>
         <select id="page-size" class="select-input" title="Paper Dimensions">
           <option value="a4" selected>A4 (210 &times; 297mm)</option>
           <option value="letter">Letter (8.5 &times; 11in)</option>
@@ -149,7 +150,8 @@
         </select>
       </div>
 
-      <div class="control-item">
+      <div class="control-item floating-field-group">
+        <label for="page-orientation" class="floating-label">Orientation</label>
         <select id="page-orientation" class="select-input" title="Orientation">
           <option value="portrait" selected>Portrait</option>
           <option value="landscape">Landscape</option>
@@ -157,19 +159,21 @@
       </div>
 
       <!-- Content Scaling -->
-      <div class="control-item">
+      <div class="control-item floating-field-group">
+        <label for="page-scale" class="floating-label">Scale</label>
         <select id="page-scale" class="select-input" title="Scale document content">
-          <option value="1" selected>Scale: 100%</option>
-          <option value="0.95">Scale: 95%</option>
-          <option value="0.9">Scale: 90% (Fit)</option>
-          <option value="0.85">Scale: 85%</option>
-          <option value="0.8">Scale: 80% (Compact)</option>
-          <option value="1.1">Scale: 110%</option>
+          <option value="1" selected>100%</option>
+          <option value="0.95">95%</option>
+          <option value="0.9">90% (Fit)</option>
+          <option value="0.85">85%</option>
+          <option value="0.8">80% (Compact)</option>
+          <option value="1.1">110%</option>
         </select>
       </div>
 
       <!-- Filename input -->
-      <div class="filename-wrapper" title="Output PDF filename">
+      <div class="filename-wrapper floating-field-group" title="Output PDF filename">
+        <label for="filename-input" class="floating-label">File Name</label>
         <input type="text" id="filename-input" class="text-input" value="invoice_INV-2026-001.pdf" placeholder="document.pdf" spellcheck="false">
       </div>
 

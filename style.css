@@ -395,11 +395,11 @@ body > [id^="mermaid"] {
 
 /* Bottom Row: Document Settings Toolbar (Scrollable on Mobile) */
 .header-tools-row {
-  height: 42px;
+  height: 52px;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 8px;
+  padding: 8px 16px 2px 16px;
+  gap: 10px;
   background-color: #fafbfc;
   overflow-x: auto;
   overflow-y: hidden;
@@ -414,13 +414,21 @@ body > [id^="mermaid"] {
 
 .divider {
   width: 1px;
-  height: 20px;
+  height: 24px;
   background-color: var(--border-light);
-  margin: 0 2px;
+  margin: 0 3px;
   flex-shrink: 0;
 }
 
-/* Form Controls */
+/* Floating Label Form Controls (Notched Outlined Field Style) */
+.floating-field-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
 .control-item {
   position: relative;
   display: inline-flex;
@@ -428,31 +436,59 @@ body > [id^="mermaid"] {
   flex-shrink: 0;
 }
 
+.floating-label {
+  position: absolute;
+  top: -7px;
+  left: 9px;
+  padding: 0 4px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary); /* #2563eb */
+  background-color: #ffffff;
+  border-radius: 2px;
+  z-index: 3;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+  user-select: none;
+  transition: color 0.15s ease, font-weight 0.15s ease;
+}
+
+.floating-field-group:hover .floating-label {
+  color: var(--primary-hover);
+}
+
+.floating-field-group:focus-within .floating-label {
+  color: var(--primary);
+  font-weight: 700;
+}
+
 .select-input, .text-input {
-  height: 32px;
-  padding: 0 10px;
+  height: 35px;
+  padding: 2px 10px 0 10px;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   color: var(--text-main);
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-light);
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   outline: none;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .select-input {
   cursor: pointer;
-  padding-right: 22px;
+  padding-right: 26px;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 8px center;
+  background-position: right 9px center;
 }
 
 .select-input:hover, .text-input:hover {
-  border-color: #cbd5e1;
+  border-color: #94a3b8;
 }
 
 .select-input:focus, .text-input:focus {
@@ -466,7 +502,7 @@ body > [id^="mermaid"] {
 }
 
 .filename-wrapper .text-input {
-  width: 170px;
+  width: 175px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: #334155;
@@ -1313,8 +1349,8 @@ body > [id^="mermaid"] {
   }
   
   .header-tools-row {
-    height: 38px;
-    padding: 0 8px;
+    height: 48px;
+    padding: 7px 8px 2px 8px;
   }
 
   #editor-stats {
