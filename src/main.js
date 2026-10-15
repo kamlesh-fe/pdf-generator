@@ -1,15 +1,28 @@
 import { generatePdfFromIframe, getPaperPixelDimensions } from './pdfEngine.js';
-import { TEMPLATES } from './templates.js';
+import { TEMPLATES, MARKDOWN_TEMPLATES } from './templates.js';
+import { compileMarkdown } from './markdownEngine.js';
+import { MARKDOWN_THEMES } from './markdownThemes.js';
 import { toPng } from 'html-to-image';
 import Prism from 'prismjs';
+globalThis.Prism = Prism;
 import 'prismjs/components/prism-markup.js';
 import 'prismjs/components/prism-css.js';
 import 'prismjs/components/prism-javascript.js';
+import 'prismjs/components/prism-markdown.js';
+import 'prismjs/components/prism-typescript.js';
+import 'prismjs/components/prism-python.js';
+import 'prismjs/components/prism-json.js';
+import 'prismjs/components/prism-bash.js';
+import 'prismjs/components/prism-yaml.js';
 import beautify from 'js-beautify';
 
 const htmlBeautify = beautify.html || beautify.html_beautify || beautify;
 
 // State
+let currentMode = 'html'; // 'html' | 'markdown'
+let currentMdTheme = 'github';
+let compiledHtmlCache = '';
+let updateCounter = 0;
 let currentZoom = 1.0;
 let debounceTimer = null;
 let autoSaveTimer = null;
@@ -55,6 +68,17 @@ const previewViewport = document.getElementById('preview-viewport');
 const toastEl = document.getElementById('toast');
 const toastMsg = document.getElementById('toast-message');
 
+// Mode Switcher Elements
+const modeBtnHtml = document.getElementById('mode-btn-html');
+const modeBtnMd = document.getElementById('mode-btn-md');
+const appTitle = document.getElementById('app-title');
+const appPill = document.getElementById('app-pill');
+const mdThemeWrapper = document.getElementById('md-theme-wrapper');
+const mdThemeSelect = document.getElementById('md-theme-select');
+const mdToolbar = document.getElementById('md-toolbar');
+const editorPaneTitle = document.getElementById('editor-pane-title');
+const dropMessageText = document.getElementById('drop-message-text');
+
 // View switcher buttons
 const viewSplitBtn = document.getElementById('view-split');
 const viewEditorBtn = document.getElementById('view-editor');
@@ -62,33 +86,55 @@ const viewPreviewBtn = document.getElementById('view-preview');
 
 // Storage keys
 const STORAGE_KEY_HTML = 'html_pdf_generator_saved_code';
+const STORAGE_KEY_MD = 'html_pdf_generator_saved_md';
+const STORAGE_KEY_MODE = 'html_pdf_generator_saved_mode';
 const STORAGE_KEY_FILENAME = 'html_pdf_generator_saved_filename';
+const STORAGE_KEY_MD_THEME = 'html_pdf_generator_saved_md_theme';
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Populate sample templates dropdown
-  initTemplateSelect();
+  // 1. Check saved mode and theme
+  const savedMode = localStorage.getItem(STORAGE_KEY_MODE);
+  if (savedMode === 'markdown' || savedMode === 'html') {
+    currentMode = savedMode;
+  }
+  const savedTheme = localStorage.getItem(STORAGE_KEY_MD_THEME);
+  if (savedTheme && MARKDOWN_THEMES[savedTheme]) {
+    currentMdTheme = savedTheme;
+    if (mdThemeSelect) mdThemeSelect.value = savedTheme;
+  }
 
-  // 2. Load cached code or initial template
-  const savedHtml = localStorage.getItem(STORAGE_KEY_HTML);
+  // 2. Populate template dropdown for active mode
+  populateTemplateSelect();
+
+  // 3. Load cached code or initial template
+  const storageKey = currentMode === 'markdown' ? STORAGE_KEY_MD : STORAGE_KEY_HTML;
+  const savedContent = localStorage.getItem(storageKey);
   const savedFilename = localStorage.getItem(STORAGE_KEY_FILENAME);
 
-  if (savedHtml && savedHtml.trim().length > 20) {
-    htmlEditor.value = savedHtml;
+  if (savedContent && savedContent.trim().length > 20) {
+    htmlEditor.value = savedContent;
     if (savedFilename) {
       filenameInput.value = savedFilename;
       isFilenameUserModified = true;
     }
     templateSelect.value = '';
-    showToast("Restored your previous work from local storage", 'info');
+    showToast(`Restored previous work (${currentMode.toUpperCase()} Mode)`, 'info');
   } else {
-    loadTemplate('invoice');
+    if (currentMode === 'markdown') {
+      loadMarkdownTemplate('tech_guide');
+    } else {
+      loadTemplate('invoice');
+    }
   }
 
-  // 3. Setup event listeners
+  // 4. Synchronize UI chrome for active mode
+  applyModeUI(currentMode);
+
+  // 5. Setup event listeners
   setupEventListeners();
 
-  // 4. Initial layout calculation and auto-fit to width
+  // 6. Initial layout calculation and auto-fit to width
   updateEditorStats();
   updatePaperLayout();
   updateSyntaxHighlight();
@@ -97,22 +143,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Initialize template dropdown
+ * Populate sample templates dropdown dynamically based on active mode
  */
-function initTemplateSelect() {
+function populateTemplateSelect() {
   templateSelect.innerHTML = '<option value="" disabled>-- Load Sample --</option>';
-  Object.keys(TEMPLATES).forEach(key => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = `Sample: ${TEMPLATES[key].name}`;
-    templateSelect.appendChild(opt);
-  });
+  if (currentMode === 'markdown') {
+    Object.keys(MARKDOWN_TEMPLATES).forEach(key => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = `Sample: ${MARKDOWN_TEMPLATES[key].name}`;
+      templateSelect.appendChild(opt);
+    });
+  } else {
+    Object.keys(TEMPLATES).forEach(key => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = `Sample: ${TEMPLATES[key].name}`;
+      templateSelect.appendChild(opt);
+    });
+  }
 }
 
 /**
  * Setup All Event Listeners
  */
 function setupEventListeners() {
+  // Format Mode Toggle Buttons
+  if (modeBtnHtml) modeBtnHtml.addEventListener('click', () => switchFormatMode('html'));
+  if (modeBtnMd) modeBtnMd.addEventListener('click', () => switchFormatMode('markdown'));
+
+  // Markdown Theme Dropdown
+  if (mdThemeSelect) {
+    mdThemeSelect.addEventListener('change', (e) => {
+      currentMdTheme = e.target.value;
+      localStorage.setItem(STORAGE_KEY_MD_THEME, currentMdTheme);
+      updatePreview();
+      showToast(`Applied theme: ${MARKDOWN_THEMES[currentMdTheme]?.name || currentMdTheme}`, 'info');
+    });
+  }
+
+  // Markdown Formatting Toolbar Actions
+  if (mdToolbar) {
+    mdToolbar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.md-tool-btn');
+      if (btn && btn.dataset.action) {
+        handleMarkdownToolAction(btn.dataset.action);
+      }
+    });
+  }
+
   // Live Editor input with debouncing, syntax highlight, and auto-save
   htmlEditor.addEventListener('input', () => {
     updateSyntaxHighlight();
@@ -129,8 +208,8 @@ function setupEventListeners() {
   // Synchronize scroll position across highlight layer and line numbers
   htmlEditor.addEventListener('scroll', syncEditorScroll);
 
-  // Editor Tab indentation preserving Undo/Redo
-  htmlEditor.addEventListener('keydown', handleEditorIndent);
+  // Editor Tab indentation & Markdown hotkeys
+  htmlEditor.addEventListener('keydown', handleEditorKeydown);
 
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', handleGlobalKeydown);
@@ -144,7 +223,12 @@ function setupEventListeners() {
   // Template change
   templateSelect.addEventListener('change', (e) => {
     const key = e.target.value;
-    if (key) loadTemplate(key);
+    if (!key) return;
+    if (currentMode === 'markdown') {
+      loadMarkdownTemplate(key);
+    } else {
+      loadTemplate(key);
+    }
   });
 
   // File Upload
@@ -153,8 +237,8 @@ function setupEventListeners() {
   // Clear button
   if (clearBtn) clearBtn.addEventListener('click', clearEditor);
 
-  // Copy HTML button
-  copyBtn.addEventListener('click', copyHTML);
+  // Copy code button
+  copyBtn.addEventListener('click', copyCode);
 
   // Format Code button
   if (formatBtn) formatBtn.addEventListener('click', formatEditorCode);
@@ -263,7 +347,12 @@ function switchViewMode(mode) {
 function saveToLocalStorage() {
   const content = htmlEditor.value;
   try {
-    localStorage.setItem(STORAGE_KEY_HTML, content);
+    if (currentMode === 'markdown') {
+      localStorage.setItem(STORAGE_KEY_MD, content);
+    } else {
+      localStorage.setItem(STORAGE_KEY_HTML, content);
+    }
+    localStorage.setItem(STORAGE_KEY_MODE, currentMode);
     if (autosaveStatus) {
       autosaveStatus.className = 'save-indicator';
       if (autosaveText) autosaveText.textContent = 'Saved';
@@ -281,7 +370,79 @@ function markSavingState() {
 }
 
 /**
- * Format / Beautify HTML Code using js-beautify
+ * Switch Document Format Mode (HTML vs Markdown)
+ */
+function switchFormatMode(newMode, preserveContent = false) {
+  if (currentMode === newMode && !preserveContent) return;
+  currentMode = newMode;
+  localStorage.setItem(STORAGE_KEY_MODE, newMode);
+
+  applyModeUI(newMode);
+  populateTemplateSelect();
+
+  if (!preserveContent) {
+    const storageKey = newMode === 'markdown' ? STORAGE_KEY_MD : STORAGE_KEY_HTML;
+    const cached = localStorage.getItem(storageKey);
+    if (cached && cached.trim().length > 20) {
+      htmlEditor.value = cached;
+      templateSelect.value = '';
+    } else {
+      if (newMode === 'markdown') {
+        loadMarkdownTemplate('tech_guide');
+      } else {
+        loadTemplate('invoice');
+      }
+    }
+  }
+
+  updateEditorStats();
+  updateSyntaxHighlight();
+  updatePreview();
+  showToast(`Switched to ${newMode === 'markdown' ? 'Markdown' : 'HTML'} Mode`, 'info');
+}
+
+/**
+ * Apply Mode UI Chrome
+ */
+function applyModeUI(mode) {
+  if (modeBtnHtml) {
+    modeBtnHtml.classList.toggle('active', mode === 'html');
+    modeBtnHtml.setAttribute('aria-selected', mode === 'html');
+  }
+  if (modeBtnMd) {
+    modeBtnMd.classList.toggle('active', mode === 'markdown');
+    modeBtnMd.setAttribute('aria-selected', mode === 'markdown');
+  }
+
+  if (appTitle) {
+    appTitle.textContent = mode === 'markdown' ? 'Markdown to PDF' : 'HTML to PDF';
+  }
+  if (appPill) {
+    appPill.textContent = mode === 'markdown' ? 'Markdown Pro' : 'Studio Pro';
+  }
+
+  if (mdThemeWrapper) {
+    mdThemeWrapper.style.display = mode === 'markdown' ? 'flex' : 'none';
+  }
+  if (mdToolbar) {
+    mdToolbar.style.display = mode === 'markdown' ? 'flex' : 'none';
+  }
+
+  if (editorPaneTitle) {
+    editorPaneTitle.textContent = mode === 'markdown' ? 'Markdown Document' : 'HTML Source';
+  }
+  if (htmlEditor) {
+    htmlEditor.placeholder = mode === 'markdown'
+      ? 'Write or paste your Markdown here... (GFM, LaTeX Math, Mermaid Diagrams, and Alerts supported)'
+      : 'Write or paste your HTML code here... (CSS & fonts are supported)';
+  }
+  if (dropMessageText) {
+    dropMessageText.textContent = mode === 'markdown' ? 'Drop Markdown file to load' : 'Drop HTML file to load';
+  }
+}
+
+/**
+ * Format / Beautify Code in Editor
  */
 function formatEditorCode() {
   const code = htmlEditor.value;
@@ -290,23 +451,31 @@ function formatEditorCode() {
     return;
   }
 
-  const formatted = htmlBeautify(code, {
-    indent_size: 2,
-    indent_char: ' ',
-    max_preserve_newlines: 1,
-    preserve_newlines: true,
-    indent_inner_html: true,
-    extra_liners: ['head', 'body', '/html'],
-    wrap_line_length: 0,
-    unformatted: ['b', 'em', 'span', 'strong', 'i']
-  });
+  if (currentMode === 'markdown') {
+    // Clean, typography-safe Markdown formatting
+    const lines = code.split(/\r?\n/);
+    const cleaned = lines.map(line => line.trimEnd()).join('\n').replace(/\n{3,}/g, '\n\n');
+    htmlEditor.value = cleaned;
+    showToast("Markdown document cleaned & formatted", 'success');
+  } else {
+    const formatted = htmlBeautify(code, {
+      indent_size: 2,
+      indent_char: ' ',
+      max_preserve_newlines: 1,
+      preserve_newlines: true,
+      indent_inner_html: true,
+      extra_liners: ['head', 'body', '/html'],
+      wrap_line_length: 0,
+      unformatted: ['b', 'em', 'span', 'strong', 'i']
+    });
+    htmlEditor.value = formatted;
+    showToast("HTML code beautified & formatted", 'success');
+  }
 
-  htmlEditor.value = formatted;
   updateSyntaxHighlight();
   updateEditorStats();
   updatePreview();
   saveToLocalStorage();
-  showToast("Code beautified & formatted", 'success');
 }
 
 /**
@@ -321,7 +490,13 @@ function updateSyntaxHighlight() {
   }
 
   try {
-    highlightCode.innerHTML = Prism.highlight(codeText, Prism.languages.markup, 'markup');
+    if (currentMode === 'markdown') {
+      highlightCode.className = 'language-markdown';
+      highlightCode.innerHTML = Prism.highlight(codeText, Prism.languages.markdown || Prism.languages.markup, 'markdown');
+    } else {
+      highlightCode.className = 'language-html';
+      highlightCode.innerHTML = Prism.highlight(codeText, Prism.languages.markup, 'markup');
+    }
   } catch (e) {
     highlightCode.textContent = codeText;
   }
@@ -357,7 +532,7 @@ function syncEditorScroll() {
 }
 
 /**
- * Load template
+ * Load HTML template
  */
 function loadTemplate(key) {
   const tpl = TEMPLATES[key];
@@ -387,6 +562,39 @@ function loadTemplate(key) {
 }
 
 /**
+ * Load Markdown template
+ */
+function loadMarkdownTemplate(key) {
+  const tpl = MARKDOWN_TEMPLATES[key];
+  if (!tpl) return;
+
+  htmlEditor.value = tpl.markdown;
+  if (tpl.filename) {
+    filenameInput.value = tpl.filename;
+    isFilenameUserModified = false;
+  }
+  if (tpl.theme && mdThemeSelect) {
+    mdThemeSelect.value = tpl.theme;
+    currentMdTheme = tpl.theme;
+  }
+  if (tpl.pageSize && pageSizeSelect) {
+    pageSizeSelect.value = tpl.pageSize;
+  }
+  if (tpl.orientation && pageOrientationSelect) {
+    pageOrientationSelect.value = tpl.orientation;
+  }
+
+  templateSelect.value = key;
+
+  updateEditorStats();
+  updatePaperLayout();
+  updateSyntaxHighlight();
+  updatePreview();
+  saveToLocalStorage();
+  showToast(`Loaded "${tpl.name}" template`, 'info');
+}
+
+/**
  * Clear the editor
  */
 function clearEditor() {
@@ -395,7 +603,7 @@ function clearEditor() {
   if (confirm("Are you sure you want to clear the editor?")) {
     htmlEditor.value = '';
     templateSelect.value = '';
-    filenameInput.value = 'document.pdf';
+    filenameInput.value = currentMode === 'markdown' ? 'document_spec.pdf' : 'document.pdf';
     isFilenameUserModified = false;
     updateEditorStats();
     updateSyntaxHighlight();
@@ -417,9 +625,10 @@ function updateEditorStats() {
 }
 
 /**
- * Handle Tab indentation in editor while preserving native Undo / Redo (Ctrl+Z)
+ * Handle Tab indentation and Markdown shortcuts in editor
  */
-function handleEditorIndent(e) {
+function handleEditorKeydown(e) {
+  // Tab Indentation
   if (e.key === 'Tab') {
     e.preventDefault();
     const start = this.selectionStart;
@@ -444,18 +653,123 @@ function handleEditorIndent(e) {
       }
     }
     this.dispatchEvent(new Event('input'));
+    return;
+  }
+
+  // Markdown Mode Hotkeys: Ctrl+B (Bold), Ctrl+I (Italic)
+  if (currentMode === 'markdown' && (e.ctrlKey || e.metaKey)) {
+    if (e.key.toLowerCase() === 'b') {
+      e.preventDefault();
+      handleMarkdownToolAction('bold');
+    } else if (e.key.toLowerCase() === 'i') {
+      e.preventDefault();
+      handleMarkdownToolAction('italic');
+    }
   }
 }
 
 /**
- * Update Preview Iframe
+ * Handle Markdown Quick Action Toolbar
  */
-function updatePreview() {
+function handleMarkdownToolAction(action) {
+  const textarea = htmlEditor;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.substring(start, end);
+
+  let replacement = '';
+  let cursorOffset = 0;
+
+  switch (action) {
+    case 'bold':
+      replacement = `**${selected || 'bold text'}**`;
+      cursorOffset = selected ? replacement.length : 2;
+      break;
+    case 'italic':
+      replacement = `*${selected || 'italic text'}*`;
+      cursorOffset = selected ? replacement.length : 1;
+      break;
+    case 'heading':
+      replacement = `\n## ${selected || 'Section Heading'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'heading3':
+      replacement = `\n### ${selected || 'Sub-section Heading'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'link':
+      replacement = `[${selected || 'link description'}](https://example.com)`;
+      cursorOffset = replacement.length;
+      break;
+    case 'quote':
+      replacement = `\n> ${selected || 'Highlighted quote or callout text.'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'code':
+      if (selected.includes('\n')) {
+        replacement = `\n\`\`\`javascript\n${selected}\n\`\`\`\n`;
+      } else {
+        replacement = `\`${selected || 'code'}\``;
+      }
+      cursorOffset = replacement.length;
+      break;
+    case 'table':
+      replacement = `\n| Header 1 | Header 2 | Header 3 |\n| :--- | :--- | :--- |\n| Row 1 Data | Sample Info | Active |\n| Row 2 Data | Sample Info | Verified |\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'task':
+      replacement = `\n- [ ] ${selected || 'New task item'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'math':
+      if (selected) {
+        replacement = `$$ ${selected} $$`;
+      } else {
+        replacement = `\n$$\n\\mathcal{L}_{\\text{total}} = \\frac{1}{N} \\sum_{i=1}^N \\left( y_i - \\hat{y}_i \\right)^2\n$$\n`;
+      }
+      cursorOffset = replacement.length;
+      break;
+    case 'diagram':
+      replacement = `\n\`\`\`mermaid\nflowchart TD\n    A[Start Request] --> B{Validated?}\n    B -- Yes --> C[Process Transaction]\n    B -- No --> D[Return 400 Bad Request]\n    C --> End[200 OK Response]\n\`\`\`\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'alert':
+      replacement = `\n> [!NOTE]\n> ${selected || 'Key background context or system guidance note.'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'pagebreak':
+      replacement = `\n\n<!-- pagebreak -->\n\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'toc':
+      replacement = `\n[TOC]\n\n`;
+      cursorOffset = replacement.length;
+      break;
+  }
+
+  if (replacement) {
+    if (typeof textarea.setRangeText === 'function') {
+      textarea.setRangeText(replacement, start, end, 'end');
+    } else {
+      textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + cursorOffset;
+    }
+    textarea.focus();
+    textarea.dispatchEvent(new Event('input'));
+  }
+}
+
+/**
+ * Update Preview Iframe (Async compilation in Markdown mode)
+ */
+async function updatePreview() {
+  const thisRun = ++updateCounter;
   const content = htmlEditor.value.trim();
   const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
 
-  doc.open();
   if (!content) {
+    compiledHtmlCache = '';
+    doc.open();
     doc.write(`
       <!DOCTYPE html>
       <html>
@@ -474,18 +788,44 @@ function updatePreview() {
             padding: 24px;
           }
           h3 { font-size: 18px; color: #64748b; margin-bottom: 8px; }
-          p { font-size: 13px; max-width: 320px; line-height: 1.5; }
+          p { font-size: 13px; max-width: 340px; line-height: 1.5; }
         </style>
       </head>
       <body>
         <h3>No Document Content</h3>
-        <p>Type or paste HTML code in the editor on the left to see the live rendered PDF preview.</p>
+        <p>${currentMode === 'markdown' ? 'Type or paste Markdown on the left to see the live rendered PDF preview.' : 'Type or paste HTML code in the editor on the left to see the live rendered PDF preview.'}</p>
       </body>
       </html>
     `);
-  } else {
-    doc.write(content);
+    doc.close();
+    return;
   }
+
+  let finalHtml = content;
+  if (currentMode === 'markdown') {
+    const pageSize = pageSizeSelect.value;
+    const orientation = pageOrientationSelect.value;
+    const scale = parseFloat(pageScaleSelect?.value || '1');
+    try {
+      finalHtml = await compileMarkdown(content, {
+        theme: currentMdTheme,
+        pageSize,
+        orientation,
+        scale
+      });
+      // Prevent stale async overwrite
+      if (thisRun !== updateCounter) return;
+      compiledHtmlCache = finalHtml;
+    } catch (e) {
+      console.warn("Markdown compile error:", e);
+      finalHtml = `<div style="padding: 24px; color: #cf222e; font-family: sans-serif;"><h3>Markdown Render Error</h3><pre>${e.message}</pre></div>`;
+    }
+  } else {
+    compiledHtmlCache = content;
+  }
+
+  doc.open();
+  doc.write(finalHtml);
   doc.close();
 
   // Inject sleek custom scrollbar style into iframe document
@@ -504,17 +844,24 @@ function updatePreview() {
     }
   } catch (e) {}
 
-  // Apply scale to preview iframe
-  applyScaleToPreview();
+  // Apply scale to preview iframe for HTML mode (Markdown handles zoom natively in compiled CSS)
+  if (currentMode === 'html') {
+    applyScaleToPreview();
+  }
 
-  // Auto-sync filename from <title> if user hasn't explicitly typed a custom filename
+  // Auto-sync filename from title if user hasn't explicitly typed a custom filename
   if (content && !isFilenameUserModified) {
-    const match = content.match(/<title>(.*?)<\/title>/i);
-    if (match && match[1]) {
-      const cleanTitle = match[1].trim()
-        .replace(/[^a-zA-Z0-9_\-\s]/g, '')
-        .trim()
-        .replace(/\s+/g, '_');
+    let cleanTitle = '';
+    if (currentMode === 'markdown') {
+      const fmTitle = content.match(/^---\r?\n[\s\S]*?title:\s*([^\r\n]+)/);
+      const h1Title = content.match(/^#\s+(.+)$/m);
+      cleanTitle = fmTitle ? fmTitle[1].trim() : (h1Title ? h1Title[1].trim() : '');
+    } else {
+      const match = content.match(/<title>(.*?)<\/title>/i);
+      cleanTitle = match ? match[1].trim() : '';
+    }
+    if (cleanTitle) {
+      cleanTitle = cleanTitle.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
       if (cleanTitle) {
         filenameInput.value = `${cleanTitle}.pdf`;
       }
@@ -522,7 +869,7 @@ function updatePreview() {
   }
 
   // Adjust preview iframe height and update page cutoff guides
-  setTimeout(adjustIframeHeight, 80);
+  setTimeout(adjustIframeHeight, 100);
 }
 
 /**
@@ -664,9 +1011,9 @@ function applyZoom() {
 }
 
 /**
- * Copy HTML source to clipboard
+ * Copy code source to clipboard
  */
-function copyHTML() {
+function copyCode() {
   const content = htmlEditor.value;
   if (!content) {
     showToast("Editor is empty", 'info');
@@ -674,14 +1021,14 @@ function copyHTML() {
   }
 
   navigator.clipboard.writeText(content).then(() => {
-    showToast("HTML copied to clipboard!", 'success');
+    showToast(`${currentMode === 'markdown' ? 'Markdown' : 'HTML'} copied to clipboard!`, 'success');
   }).catch(() => {
     showToast("Failed to copy to clipboard", 'error');
   });
 }
 
 /**
- * File upload
+ * File upload handler (Supports .html, .htm, .md, .markdown)
  */
 function handleFileUpload(e) {
   const file = e.target.files[0];
@@ -692,13 +1039,21 @@ function handleFileUpload(e) {
 }
 
 function loadFileContent(file) {
-  if (!file.name.match(/\.(html|htm)$/i)) {
-    showToast("Please upload an .html or .htm file", 'error');
+  const isMd = file.name.match(/\.(md|markdown)$/i);
+  const isHtml = file.name.match(/\.(html|htm)$/i);
+
+  if (!isMd && !isHtml) {
+    showToast("Please upload an .html, .htm, .md, or .markdown file", 'error');
     return;
   }
 
   const reader = new FileReader();
   reader.onload = (event) => {
+    const targetMode = isMd ? 'markdown' : 'html';
+    if (currentMode !== targetMode) {
+      switchFormatMode(targetMode, true);
+    }
+
     htmlEditor.value = event.target.result;
     const baseName = file.name.replace(/\.[^/.]+$/, "");
     filenameInput.value = `${baseName}.pdf`;
@@ -709,7 +1064,7 @@ function loadFileContent(file) {
     updateSyntaxHighlight();
     updatePreview();
     saveToLocalStorage();
-    showToast(`Loaded: ${file.name}`, 'success');
+    showToast(`Loaded: ${file.name} (${targetMode.toUpperCase()} Mode)`, 'success');
   };
   reader.onerror = () => {
     showToast("Failed to read file", 'error');
@@ -754,7 +1109,7 @@ function setupDragAndDrop() {
 function getOutputFilename() {
   let filename = filenameInput.value.trim().replace(/[\r\n\t]/g, '');
   if (!filename) {
-    filename = 'document.pdf';
+    filename = currentMode === 'markdown' ? 'document_spec.pdf' : 'document.pdf';
   } else if (!filename.toLowerCase().endsWith('.pdf')) {
     filename += '.pdf';
   }
@@ -762,12 +1117,34 @@ function getOutputFilename() {
 }
 
 /**
- * High-Fidelity Download PDF Action
+ * Helper to obtain the active print-ready HTML
+ */
+async function getActiveHtml() {
+  const content = htmlEditor.value.trim();
+  if (!content) return '';
+
+  if (currentMode === 'markdown') {
+    const pageSize = pageSizeSelect.value;
+    const orientation = pageOrientationSelect.value;
+    const scale = parseFloat(pageScaleSelect?.value || '1');
+    return await compileMarkdown(content, {
+      theme: currentMdTheme,
+      pageSize,
+      orientation,
+      scale
+    });
+  }
+
+  return content;
+}
+
+/**
+ * High-Fidelity Download PDF Action (Skia Chromium Engine + Client Fallback)
  */
 async function handleDownloadPDF() {
   const content = htmlEditor.value.trim();
   if (!content) {
-    showToast("Please write or paste HTML code first", 'error');
+    showToast(currentMode === 'markdown' ? "Please write or paste Markdown code first" : "Please write or paste HTML code first", 'error');
     return;
   }
 
@@ -781,13 +1158,15 @@ async function handleDownloadPDF() {
   try {
     showToast("Compiling pixel-perfect PDF...", 'info');
 
+    const htmlToSend = await getActiveHtml();
+
     let downloadedViaApi = false;
     try {
       const res = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html: content,
+          html: htmlToSend,
           filename: filename,
           pageSize: pageSize,
           orientation: orientation,
@@ -837,7 +1216,7 @@ async function handleDownloadPDF() {
 async function handlePreviewInTab() {
   const content = htmlEditor.value.trim();
   if (!content) {
-    showToast("Please write or paste HTML code first", 'error');
+    showToast("Please write or paste document code first", 'error');
     return;
   }
 
@@ -849,11 +1228,12 @@ async function handlePreviewInTab() {
   showToast("Preparing PDF viewer...", 'info');
 
   try {
+    const htmlToSend = await getActiveHtml();
     const res = await fetch('/api/generate-pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        html: content,
+        html: htmlToSend,
         filename: filename,
         pageSize: pageSize,
         orientation: orientation,
@@ -880,7 +1260,7 @@ async function handlePreviewInTab() {
 async function handleExportPNG() {
   const content = htmlEditor.value.trim();
   if (!content) {
-    showToast("Please write or paste HTML code first", 'error');
+    showToast("Please write or paste document code first", 'error');
     return;
   }
 
@@ -913,10 +1293,10 @@ async function handleExportPNG() {
 /**
  * Native Vector Print Fallback
  */
-function printDocument() {
+async function printDocument() {
   const content = htmlEditor.value.trim();
   if (!content) {
-    showToast("Please write or paste HTML code first", 'error');
+    showToast("Please write or paste document code first", 'error');
     return;
   }
 
@@ -925,9 +1305,10 @@ function printDocument() {
     previewFrame.contentWindow.focus();
     previewFrame.contentWindow.print();
   } catch (err) {
+    const htmlToSend = await getActiveHtml();
     const printWin = window.open('', '_blank');
     if (printWin) {
-      printWin.document.write(content);
+      printWin.document.write(htmlToSend);
       printWin.document.close();
       printWin.focus();
       setTimeout(() => {
@@ -975,3 +1356,4 @@ function showToast(message, type = 'info') {
     toastEl.classList.remove('show');
   }, 3000);
 }
+

@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,9 +27,29 @@
           </svg>
         </div>
         <div class="brand-title">
-          <h1>HTML to PDF</h1>
-          <span class="brand-pill">Studio Pro</span>
+          <h1 id="app-title">HTML to PDF</h1>
+          <span class="brand-pill" id="app-pill">Studio Pro</span>
         </div>
+      </div>
+
+      <!-- Mode Switcher: HTML vs Markdown -->
+      <div class="mode-switch-group" role="tablist" aria-label="Document format mode">
+        <button id="mode-btn-html" class="mode-tab active" role="tab" aria-selected="true" title="HTML to PDF Mode">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          <span class="mode-tab-text">HTML</span>
+        </button>
+        <button id="mode-btn-md" class="mode-tab" role="tab" aria-selected="false" title="Markdown to PDF Mode (GFM, KaTeX, Mermaid)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="7 15 7 9 10 12 13 9 13 15"></polyline>
+            <polyline points="18 11 15 14 15 11"></polyline>
+          </svg>
+          <span class="mode-tab-text">Markdown</span>
+          <span class="mode-badge-pro">PRO</span>
+        </button>
       </div>
 
       <!-- Workspace View Mode Switcher -->
@@ -106,6 +127,17 @@
         </select>
       </div>
 
+      <!-- Markdown Theme Selector (Visible in Markdown Mode) -->
+      <div class="control-item" id="md-theme-wrapper" style="display: none;">
+        <label for="md-theme-select" class="sr-only">Markdown Theme</label>
+        <select id="md-theme-select" class="select-input" title="Markdown PDF Typography & Layout Theme">
+          <option value="github" selected>Theme: GitHub Modern</option>
+          <option value="academic">Theme: Academic Paper (arXiv)</option>
+          <option value="executive">Theme: Executive Spec</option>
+          <option value="minimalist">Theme: Minimalist Clean</option>
+        </select>
+      </div>
+
       <div class="divider"></div>
 
       <!-- Page Size & Orientation -->
@@ -143,15 +175,15 @@
 
       <div class="divider"></div>
 
-      <!-- Upload HTML file -->
-      <label class="btn btn-secondary upload-btn" title="Upload local HTML file">
+      <!-- Upload HTML/Markdown file -->
+      <label class="btn btn-secondary upload-btn" title="Upload local HTML or Markdown file">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="17 8 12 3 7 8"></polyline>
           <line x1="12" y1="3" x2="12" y2="15"></line>
         </svg>
         <span class="tool-btn-text">Upload</span>
-        <input type="file" id="file-input" accept=".html,.htm" style="display: none;">
+        <input type="file" id="file-input" accept=".html,.htm,.md,.markdown" style="display: none;">
       </label>
 
       <!-- Print Button -->
@@ -177,7 +209,7 @@
             <polyline points="16 18 22 12 16 6"></polyline>
             <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
-          <h2>HTML Source</h2>
+          <h2 id="editor-pane-title">HTML Source</h2>
           <!-- Live Auto-Save Indicator -->
           <span id="autosave-status" class="save-indicator">
             <span class="save-dot"></span>
@@ -188,7 +220,7 @@
         <div class="pane-meta">
           <span id="editor-stats">0 lines &bull; 0 chars</span>
           <!-- Format / Beautify Code -->
-          <button id="format-btn" class="icon-btn" title="Beautify &amp; Format HTML (Shift+Alt+F)">
+          <button id="format-btn" class="icon-btn" title="Beautify &amp; Format Code (Shift+Alt+F)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="21" y1="10" x2="7" y2="10"></line>
               <line x1="21" y1="6" x2="3" y2="6"></line>
@@ -196,8 +228,8 @@
               <line x1="21" y1="18" x2="7" y2="18"></line>
             </svg>
           </button>
-          <!-- Copy HTML -->
-          <button id="copy-btn" class="icon-btn" title="Copy HTML to clipboard">
+          <!-- Copy HTML/MD -->
+          <button id="copy-btn" class="icon-btn" title="Copy code to clipboard">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -211,6 +243,27 @@
             </svg>
           </button>
         </div>
+      </div>
+
+      <!-- Markdown Quick Formatting Toolbar (Active in Markdown Mode) -->
+      <div class="md-toolbar" id="md-toolbar" style="display: none;" role="toolbar" aria-label="Markdown quick formatting">
+        <button type="button" class="md-tool-btn" data-action="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button type="button" class="md-tool-btn" data-action="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button type="button" class="md-tool-btn" data-action="heading" title="Heading 2">H2</button>
+        <button type="button" class="md-tool-btn" data-action="heading3" title="Heading 3">H3</button>
+        <div class="md-toolbar-sep"></div>
+        <button type="button" class="md-tool-btn" data-action="link" title="Insert Hyperlink">Link</button>
+        <button type="button" class="md-tool-btn" data-action="quote" title="Blockquote">&gt;&nbsp;Quote</button>
+        <button type="button" class="md-tool-btn" data-action="code" title="Code Block">&lt;/&gt;</button>
+        <div class="md-toolbar-sep"></div>
+        <button type="button" class="md-tool-btn" data-action="table" title="Insert GFM Table">Table</button>
+        <button type="button" class="md-tool-btn" data-action="task" title="Task List Item">&#9745; Task</button>
+        <button type="button" class="md-tool-btn" data-action="math" title="Insert KaTeX Math Formula">$$ Math</button>
+        <button type="button" class="md-tool-btn" data-action="diagram" title="Insert Mermaid Diagram">&#9671; Diagram</button>
+        <button type="button" class="md-tool-btn" data-action="alert" title="Insert GitHub Callout Alert">&#9432; Alert</button>
+        <div class="md-toolbar-sep"></div>
+        <button type="button" class="md-tool-btn" data-action="pagebreak" title="Insert Page Break Cutoff">&crarr; Page Break</button>
+        <button type="button" class="md-tool-btn" data-action="toc" title="Insert Table of Contents">[TOC]</button>
       </div>
 
       <div class="editor-container" id="editor-container">
@@ -232,7 +285,7 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <p>Drop HTML file to load</p>
+            <p id="drop-message-text">Drop HTML or Markdown file to load</p>
           </div>
         </div>
       </div>

@@ -951,3 +951,294 @@ export const TEMPLATES = {
 </html>`
   }
 };
+
+/**
+ * Competitor-Level Markdown Templates
+ * Featuring YAML Frontmatter, LaTeX Math equations, Mermaid diagrams, GFM tables, alerts, and task lists.
+ */
+export const MARKDOWN_TEMPLATES = {
+  tech_guide: {
+    name: "Tech Guide & Architecture (Mermaid & Code)",
+    filename: "cloud_architecture_spec.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
+    theme: "github",
+    markdown: `---
+title: Cloud Native Architecture & API Reference
+subtitle: Event-Driven Microservices, Distributed Caching & High Availability SLA
+author: Platform Engineering Team
+date: 2026-10-15
+version: 2.4.0
+---
+
+[TOC]
+
+## 1. Executive Architecture Overview
+
+This document outlines the distributed cloud architecture for our global transactions pipeline. All services are deployed across multi-region Kubernetes clusters with automatic failover and zero-downtime rolling updates.
+
+> [!NOTE]
+> All incoming API traffic is terminated at the edge via Cloudflare Enterprise with Anycast routing and automated DDoS mitigation.
+
+> [!IMPORTANT]
+> Mutual TLS (mTLS) with SPIFFE/SPIRE x509 certificates is strictly enforced across all internal service mesh RPC calls.
+
+## 2. System Flowchart & Service Mesh
+
+The following diagram illustrates the lifecycle of an authenticated transactional request:
+
+\`\`\`mermaid
+flowchart TD
+    Client([Web & Mobile Clients]) --> CDN[Global CDN / Edge Gateway]
+    CDN --> WAF{Cloud WAF & DDoS}
+    WAF -- Valid Request --> LB[Layer 7 Envoy Load Balancer]
+    WAF -- Malicious --> Block[403 Forbidden]
+    
+    subgraph Kubernetes Service Mesh
+        LB --> Auth[OAuth2 / JWT Token Validator]
+        Auth --> API[Core API Gateway Cluster]
+        API --> OrderSvc[Order Processing Service]
+        API --> InventorySvc[Inventory Ledger Service]
+        OrderSvc --> Kafka[(Kafka Event Bus)]
+        Kafka --> StreamProc[Real-time Fraud Detector]
+        OrderSvc --> Postgres[(PostgreSQL Primary DB)]
+        InventorySvc --> Redis[(Redis Read Replica)]
+    end
+\`\`\`
+
+## 3. High-Performance API Contract
+
+All endpoints adhere to JSON:API v1.1 standards with mandatory rate-limiting headers.
+
+\`\`\`typescript
+interface PaymentIntentRequest {
+  idempotencyKey: string;
+  customerId: string;
+  amount: number;
+  currency: 'USD' | 'EUR' | 'GBP' | 'INR';
+  metadata: Record<string, string>;
+  lineItems: Array<{
+    sku: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+}
+\`\`\`
+
+### 3.1 Rate Limit Headers & SLA Matrix
+
+| Metric / Header | Description | Production Target | P99 SLA Limit |
+| :--- | :--- | :--- | :--- |
+| \`X-RateLimit-Limit\` | Maximum requests permitted per 60s sliding window | 10,000 req/min | 12,000 req/min |
+| \`X-RateLimit-Remaining\` | Remaining request quota in current window | > 1,500 | Minimum 0 |
+| \`X-Server-Latency\` | Internal processing time excluding network hop | < 18ms | ≤ 45ms |
+| Database Read Queries | Sub-millisecond Redis cache hits | 98.4% Hit Rate | ≥ 95.0% |
+
+> [!TIP]
+> For batch jobs exceeding 500 items, always use the asynchronous \`/v2/jobs/bulk-dispatch\` endpoint to prevent HTTP 504 gateway timeouts.
+
+<!-- pagebreak -->
+
+## 4. Sequence of Operations
+
+The asynchronous event flow guarantees exactly-once delivery semantics through distributed ledger locks:
+
+\`\`\`mermaid
+sequenceDiagram
+    autonumber
+    actor User as Customer
+    participant GW as API Gateway
+    participant Order as Order Service
+    participant Pay as Stripe Gateway
+    participant Queue as Kafka Broker
+
+    User->>GW: POST /v2/orders (Idempotency-Key)
+    GW->>Order: Validate & Deduplicate
+    Order->>Pay: Authorize Payment Charge ($420.00)
+    Pay-->>Order: 200 OK (ChargeAuthorized)
+    Order->>Queue: Publish 'OrderCreated' Event
+    Order-->>GW: Return Order Details & Tracking ID
+    GW-->>User: 201 Created (Receipt JSON)
+\`\`\`
+
+## 5. Security Checklist & Verification
+
+- [x] Enforce TLS 1.3 with AES-256-GCM cipher suites
+- [x] Automated secret rotation via HashiCorp Vault (24-hour TTL)
+- [x] Static Application Security Testing (SAST) in CI/CD pipeline
+- [x] Zero Trust network policies with Cilium eBPF
+- [ ] Penetration test verification by external red team (Scheduled Q4)
+
+> [!WARNING]
+> Deprecated API endpoints under \`/v1/checkout/*\` will be sunset permanently on December 31, 2026.
+`
+  },
+
+  academic_paper: {
+    name: "Academic Research (LaTeX Math & Proof)",
+    filename: "latent_diffusion_research.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
+    theme: "academic",
+    markdown: `---
+title: Latent Diffusion Transformers for Scalable High-Fidelity Synthesis
+subtitle: Convergence Bounds, Classifier-Free Guidance & Spectral Manifold Analysis
+author: Dr. Alistair Sterling & Dr. Linnea Zhao
+date: October 2026
+version: arXiv:2610.08942v1 [cs.LG]
+---
+
+## Abstract
+
+We present Latent Diffusion Transformers (LDT), an architecture replacing standard U-Net backbones with scalable multi-head self-attention mechanisms operating in compressed continuous latent representations. We prove theoretical convergence limits for discrete Langevin sampling and establish that classifier-free guidance reduces the Fréchet Inception Distance (FID) while preserving manifold diversity.
+
+## 1. Introduction and Problem Formulation
+
+Diffusion models generate data distributions by inverting a forward Gaussian corruption process. Given an initial sample $x_0 \\sim q(x_0)$, the Markovian forward transition distribution is parameterized as:
+
+$$q(x_t \\mid x_{t-1}) = \\mathcal{N}\\left(x_t; \\sqrt{1 - \\beta_t}\\, x_{t-1},\\, \\beta_t \\mathbf{I}\\right)$$
+
+where $\\beta_1, \\beta_2, \\dots, \\beta_T$ denotes the predetermined variance schedule. Through recursive substitution, arbitrary step $t$ marginals simplify in closed form to:
+
+$$q(x_t \\mid x_0) = \\mathcal{N}\\left(x_t; \\sqrt{\\bar{\\alpha}_t}\\, x_0,\\, (1 - \\bar{\\alpha}_t) \\mathbf{I}\\right)$$
+
+with $\\alpha_t = 1 - \\beta_t$ and $\\bar{\\alpha}_t = \\prod_{s=1}^t \\alpha_s$.
+
+> [!NOTE]
+> In high-dimensional regimes where $d > 10^6$, pixel-space diffusion suffers from cubic computational scaling. Latent compression through a pre-trained autoencoder $\\mathcal{E}(x)$ reduces dimensionality by an order of magnitude.
+
+## 2. Objective Function & Denoising Score Matching
+
+The model parameters $\\theta$ are trained by minimizing the variational re-weighted denoising score matching objective:
+
+$$\\mathcal{L}_{\\text{simple}}(\\theta) = \\mathbb{E}_{t, x_0, \\epsilon} \\left[ \\left\\| \\epsilon - \\epsilon_\\theta\\left( \\sqrt{\\bar{\\alpha}_t} x_0 + \\sqrt{1 - \\bar{\\alpha}_t} \\epsilon,\\, t \\right) \\right\\|_2^2 \\right]$$
+
+where $t \\sim \\mathcal{U}(\\{1, \\dots, T\\})$ and $\\epsilon \\sim \\mathcal{N}(0, \\mathbf{I})$.
+
+\`\`\`mermaid
+graph LR
+    X0["Input x₀"] --> Enc["Latent Encoder E(·)"]
+    Enc --> Z0["Latent z₀"]
+    Z0 --> Noise["+ Gaussian Noise ε"]
+    Noise --> Zt["Noisy Latent zₜ"]
+    Zt --> DiT["Transformer Backbone ε_θ"]
+    DiT --> Pred["Predicted Noise ε̂"]
+    Pred --> Loss["‖ε - ε̂‖² Objective"]
+\`\`\`
+
+<!-- pagebreak -->
+
+## 3. Classifier-Free Guidance Dynamics
+
+During inference, unconditional generation $\\epsilon_\\theta(z_t, \\emptyset)$ is combined with conditional score $\\epsilon_\\theta(z_t, c)$ with guidance scale $w \\ge 1$:
+
+$$\\tilde{\\epsilon}_\\theta(z_t, c) = (1 + w)\\,\\epsilon_\\theta(z_t, c) - w\\,\\epsilon_\\theta(z_t, \\emptyset)$$
+
+### 3.1 Empirical Benchmark Evaluation
+
+We evaluate the model against standard benchmarks on ImageNet $512 \\times 512$:
+
+| Model Architecture | FID-50K (↓) | Inception Score (↑) | Throughput (img/sec) | Parameter Count |
+| :--- | :--- | :--- | :--- | :--- |
+| ADM U-Net Baseline | 3.85 | 224.5 | 1.42 | 554M |
+| DiT-XL/2 | 2.27 | 278.3 | 4.88 | 675M |
+| **LDT-Ultra (Ours)** | **1.74** | **312.8** | **9.15** | **610M** |
+
+> [!TIP]
+> Applying flash-attention v3 in the cross-attention layers yields an additional 1.8x speedup on NVIDIA H100 Tensor Core GPUs.
+
+## 4. Conclusion & Reproducibility
+
+The combination of spatial tokenization, linear self-attention, and schedule optimization enables state-of-the-art generative performance at a fraction of standard training budgets. Complete PyTorch model weights and configuration checkpoints are made publicly available.
+`
+  },
+
+  product_spec: {
+    name: "Executive Feature Spec (Rules & Formulas)",
+    filename: "eps_ceiling_proration_spec.pdf",
+    pageSize: "a4",
+    orientation: "portrait",
+    theme: "executive",
+    markdown: `---
+title: Feature Spec: EPS Ceiling Proration for Loss of Pay
+subtitle: NCP Days in ECR, EDLI Base, and Statutory Pension Compliance
+author: Payroll & Compliance Engineering Team
+date: 2026-10-15
+version: 3.1.0-RC
+---
+
+[TOC]
+
+## 1. Why This Change
+
+Every month the employer files an ECR (Electronic Challan cum Return) with EPFO. EPFO expects an employee's pension (EPS) wage to fit the days the employee actually contributed. Our rule caps it at:
+
+$$\\text{EPS wages} \\le \\text{EPS ceiling} \\times \\frac{\\text{calendar days} - \\text{NCP days}}{\\text{calendar days}}$$
+
+EPFO's published ECR rules require that EPS wages do not exceed EPF wages and that EPS remitted does not exceed 8.33% of EPS wages.
+
+> [!IMPORTANT]
+> **EPS Ceiling** is ₹15,000 (revised to ₹25,000 from 17-Sep-2026).
+> **NCP Days** (Non-Contributory Period) are days in the pay period the employee was not paid, reducing pensionable service.
+
+## 2. Problem Matrix & Resolution
+
+| Area | Before Revision | After Revision (Compliant) |
+| :--- | :--- | :--- |
+| **NCP Days in ECR** | Only restricted + NC employees | **Every EPF member with LOP** |
+| **Zero Wages in Month** | NCP not reported | **NCP = calendar days**, all wages 0 |
+| **EPS Wage with LOP** | Reported at full ceiling | Ceiling **prorated for NCP days** |
+| **EDLI Wage Base** | Tied directly to EPS wage | Lower of EPF wage and **full ceiling** |
+| **Employer 12% Total** | — | **Unchanged** (only A/c 1 vs EPS moves) |
+
+## 3. Business Logic Pipeline
+
+The following state machine governs wage computation for each pay run:
+
+\`\`\`mermaid
+flowchart TD
+    LOP[Attendance: LOP Days Detected] --> CalcPaid[Paid Days = Working Days - LOP]
+    CalcPaid --> CheckZero{Paid Days == 0?}
+    CheckZero -- Yes --> FullNCP[NCP = Calendar Days<br>EPS Wage = 0]
+    CheckZero -- No --> NCPCalc[NCP = Working Days - Paid Days]
+    NCPCalc --> Prorate[Reduced Ceiling = 15000 * (CalDays - NCP) / CalDays]
+    Prorate --> EPSWage[EPS Wage = Min(EPF Wage, Reduced Ceiling)]
+    EPSWage --> Remit[EPS 8.33% Remittance]
+\`\`\`
+
+<!-- pagebreak -->
+
+## 4. Statutory Mathematical Formulas
+
+### 4.1 NCP Days Calculation
+
+$$\\text{effective paid days} = \\text{paid days} + \\text{additional earning days}$$
+
+$$\\text{NCP} = \\begin{cases} 
+\\text{calendar days} & \\text{if effective paid days} = 0 \\\\
+\\min\\left(\\max(0, \\text{working days} - \\text{effective paid days}), \\text{calendar days} - 1\\right) & \\text{otherwise}
+\\end{cases}$$
+
+### 4.2 EPS & EDLI Contribution Split
+
+$$\\text{reduced EPS ceiling} = \\left\\lfloor \\text{ceiling} \\times \\frac{\\text{calendar days} - \\text{NCP days}}{\\text{calendar days}} \\right\\rfloor$$
+
+$$\\text{EPS wage} = \\min(\\text{employer EPF wage}, \\text{reduced EPS ceiling})$$
+
+$$\\text{EPS contribution} = \\text{round}(\\text{EPS wage} \\times 8.33\\%)$$
+
+$$\\text{EPF A/c 1} = \\text{employer 12\\% share} - \\text{EPS contribution}$$
+
+> [!NOTE]
+> Additional earning days count as paid days and directly reduce NCP count.
+
+## 5. Implementation Roadmap & QA Sign-Off
+
+- [x] Engine math update with integer rounding down to nearest Rupee
+- [x] Integration unit test suite covering 48 edge cases (lop=0.5, lop=31, join-mid-month)
+- [x] EPFO ECR XML / Text schema validation
+- [ ] Production rollout to automated payroll scheduler
+`
+  }
+};
+
