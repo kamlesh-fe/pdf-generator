@@ -462,6 +462,7 @@ function switchFormatMode(newMode, preserveContent = false) {
   const currentVal = htmlEditor.value.trim();
   const hasCustomUserContent = currentVal.length > 0 && !isDefaultSampleContent(currentVal);
 
+  let templateLoaded = false;
   if (preserveContent || hasCustomUserContent) {
     // Preserve custom user content! Never overwrite custom work
     templateSelect.value = '';
@@ -475,8 +476,10 @@ function switchFormatMode(newMode, preserveContent = false) {
     } else {
       if (newMode === 'markdown') {
         loadMarkdownTemplate('tech_guide');
+        templateLoaded = true;
       } else {
         loadTemplate('invoice');
+        templateLoaded = true;
       }
     }
   }
@@ -484,7 +487,9 @@ function switchFormatMode(newMode, preserveContent = false) {
   updateEditorStats();
   updatePaperLayout();
   updateSyntaxHighlight();
-  updatePreview();
+  if (!templateLoaded) {
+    updatePreview();
+  }
   showToast(`Switched to ${newMode === 'markdown' ? 'Markdown' : 'HTML'} Mode`, 'info');
 }
 
