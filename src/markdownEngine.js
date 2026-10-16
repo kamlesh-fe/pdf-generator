@@ -146,10 +146,23 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     content = content.replace(/\[\[?TOC\]?\]/gi, tocList);
   }
 
+  // Protect all code blocks from inline syntax replacements (e.g. '==' in code turning into <mark>)
+  const codePlaceholders = [];
+  content = content.replace(/(```[\s\S]*?```|`[^`\n]+`)/g, (match) => {
+    const idx = codePlaceholders.length;
+    codePlaceholders.push(match);
+    return `@@@CODE_BLOCK_PROTECTED_${idx}@@@`;
+  });
+
   // 6. Inline Formatting Enhancements (Mark, Sub, Sup)
   content = content.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
   content = content.replace(/(?<![\\~])~([^~\s\n]+)~(?!~)/g, '<sub>$1</sub>');
   content = content.replace(/(?<![\\\^])\^([^\^\s\n]+)\^(?!\^)/g, '<sup>$1</sup>');
+
+  // Restore protected code blocks
+  content = content.replace(/@@@CODE_BLOCK_PROTECTED_(\d+)@@@/g, (m, idx) => {
+    return codePlaceholders[Number(idx)];
+  });
 
   // 7. Footnotes Processing
   const footnotes = [];
@@ -340,6 +353,19 @@ export async function compileMarkdown(markdownRaw, options = {}) {
         const wrapperEl = document.getElementById(`d${diagId}`);
         if (wrapperEl) wrapperEl.remove();
       }
+
+      if (renderedSvg && renderedSvg.includes('<svg')) {
+        // Strip hardcoded inline max-width, height, and width attributes that break print page boundaries
+        renderedSvg = renderedSvg.replace(/<svg\b([^>]*?)>/i, (m, attrs) => {
+          let clean = attrs
+            .replace(/\sheight="[^"]*"/gi, '')
+            .replace(/\sstyle="[^"]*"/gi, '');
+          if (!clean.includes('preserveAspectRatio')) {
+            clean += ' preserveAspectRatio="xMidYMid meet"';
+          }
+          return `<svg ${clean}>`;
+        });
+      }
     }
 
     // Use function replacer to prevent special $ patterns from corrupting SVG markup
@@ -388,7 +414,7 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     /* Print Layout Metrics */
     @page {
       size: ${pageSize} ${orientation};
-      margin: 15mm;
+      margin: 12mm 15mm;
     }
     * {
       box-sizing: border-box;
@@ -400,8 +426,13 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       padding: 0;
     }
     body {
-      padding: 24px;
+      padding: 20px;
       zoom: ${scale};
+    }
+    @media print {
+      body {
+        padding: 0 !important;
+      }
     }
 
     /* Selected Theme CSS */
@@ -445,7 +476,8 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       display: table-header-group;
     }
     tr {
-      page-break-inside: avoid;
+      break-inside: auto;
+      page-break-inside: auto;
     }
 
     /* Frontmatter Header */
@@ -453,10 +485,11 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       border-bottom: 2px solid #e2e8f0;
       padding-bottom: 18px;
       margin-bottom: 24px;
+      break-inside: avoid;
       page-break-inside: avoid;
     }
     .fm-title {
-      font-size: 24pt !important;
+      font-size: 22pt !important;
       font-weight: 700 !important;
       margin: 0 0 6px 0 !important;
       border-bottom: none !important;
@@ -464,7 +497,7 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       line-height: 1.25 !important;
     }
     .fm-subtitle {
-      font-size: 13pt;
+      font-size: 12.5pt;
       color: #64748b;
       margin-bottom: 12px;
     }
@@ -483,6 +516,7 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       border-radius: 6px;
       padding: 14px 18px;
       margin: 16px 0 24px;
+      break-inside: avoid;
       page-break-inside: avoid;
     }
     .toc-title {
@@ -506,9 +540,10 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     /* GitHub Alert Callouts */
     .markdown-alert {
       padding: 10px 14px;
-      margin: 14px 0;
+      margin: 12px 0;
       border-left: 4px solid #d0d7de;
       border-radius: 0 6px 6px 0;
+      break-inside: avoid;
       page-break-inside: avoid;
       font-size: 9.5pt;
     }
@@ -536,17 +571,69 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       accent-color: #2563eb;
     }
 
+    /* Code Blocks Splitting & Line Wrapping */
+    .code-block-wrapper {
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+      margin: 10px 0 12px 0;
+      overflow: visible;
+    }
+    .code-block-header {
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+    pre,
+    pre code,
+    code {
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    pre {
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+      overflow: visible;
+      line-height: 1.4;
+      orphans: 3;
+      widows: 3;
+    }
+
     /* Mermaid Diagrams */
     .mermaid-diagram-wrapper {
       display: flex;
       justify-content: center;
-      margin: 18px 0;
+      align-items: center;
+      margin: 12px 0 16px 0;
+      break-inside: avoid;
       page-break-inside: avoid;
-      overflow-x: auto;
+      overflow: visible;
+      width: 100%;
     }
     .mermaid-diagram-wrapper svg {
+      display: block;
       max-width: 100% !important;
+      max-height: 200mm !important;
+      width: auto !important;
       height: auto !important;
+      object-fit: contain;
+    }
+    @media screen {
+      .mermaid-diagram-wrapper svg {
+        max-height: 650px !important;
+      }
+    }
+    @media print {
+      .mermaid-diagram-wrapper {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        overflow: visible !important;
+      }
+      .mermaid-diagram-wrapper svg {
+        max-width: 100% !important;
+        max-height: 195mm !important;
+        width: auto !important;
+        height: auto !important;
+      }
     }
     .mermaid-error {
       background: #fef2f2;
@@ -559,14 +646,61 @@ export async function compileMarkdown(markdownRaw, options = {}) {
 
     /* KaTeX Math */
     .katex-display-wrapper {
-      margin: 14px 0;
+      margin: 12px 0;
       display: flex;
       justify-content: center;
-      overflow-x: auto;
+      overflow: visible;
+      break-inside: avoid;
       page-break-inside: avoid;
     }
     .katex {
-      font-size: 1.08em;
+      font-size: 1.05em;
+    }
+
+    /* Global Scrollbar Suppression */
+    pre,
+    code,
+    .code-block-wrapper,
+    .mermaid-diagram-wrapper,
+    .katex-display-wrapper {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    pre::-webkit-scrollbar,
+    code::-webkit-scrollbar,
+    .code-block-wrapper::-webkit-scrollbar,
+    .mermaid-diagram-wrapper::-webkit-scrollbar,
+    .katex-display-wrapper::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    @media print {
+      pre,
+      code,
+      .code-block-wrapper,
+      .mermaid-diagram-wrapper,
+      .katex-display-wrapper,
+      main.markdown-body {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+      }
+      .code-block-wrapper {
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+      }
+      pre {
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
     }
 
     /* Markdown Images & Figures */

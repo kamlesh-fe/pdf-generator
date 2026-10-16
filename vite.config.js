@@ -254,6 +254,7 @@ async function renderHtmlToPdf(html, options = {}) {
         try {
           await send('Page.enable');
           await send('Runtime.enable');
+          await send('Emulation.setEmulatedMedia', { media: 'print' });
 
           const fileUrl = 'file:///' + tempHtmlPath.replace(/\\/g, '/');
           await send('Page.navigate', { url: fileUrl });
