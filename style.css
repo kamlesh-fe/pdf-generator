@@ -54,22 +54,18 @@ html, body {
   overflow: hidden;
 }
 
-/* Prevent temporary rendering sandboxes or third-party elements from disrupting flex layout */
-#mermaid-render-sandbox,
+/* Prevent temporary Mermaid rendering containers from flickering on screen while preserving layout measurement */
 body > [id^="dmermaid"],
-body > [id^="mermaid"] {
-  display: none !important;
+body > [id^="mermaid"],
+#mermaid-render-container {
   position: fixed !important;
-  visibility: hidden !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  max-width: 0 !important;
-  max-height: 0 !important;
+  top: 0 !important;
+  left: -99999px !important;
+  width: 1400px !important;
+  height: auto !important;
+  opacity: 0 !important;
   pointer-events: none !important;
-  overflow: hidden !important;
-  z-index: -9999 !important;
+  z-index: -99999 !important;
 }
 
 /* ==========================================================================

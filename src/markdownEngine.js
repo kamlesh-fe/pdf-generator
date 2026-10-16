@@ -319,27 +319,26 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     if (typeof document === 'undefined') {
       renderedSvg = `<pre class="mermaid">${escapeHtml(mermaidCode)}</pre>`;
     } else {
-      let sandbox = document.getElementById('mermaid-render-sandbox');
-      if (!sandbox) {
-        sandbox = document.createElement('div');
-        sandbox.id = 'mermaid-render-sandbox';
-        sandbox.setAttribute('aria-hidden', 'true');
-        sandbox.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;opacity:0;pointer-events:none;visibility:hidden;overflow:hidden;';
-        document.body.appendChild(sandbox);
+      let renderContainer = document.getElementById('mermaid-render-container');
+      if (!renderContainer) {
+        renderContainer = document.createElement('div');
+        renderContainer.id = 'mermaid-render-container';
+        renderContainer.setAttribute('aria-hidden', 'true');
+        renderContainer.style.cssText = 'position: absolute; left: 0; top: 0; width: 1400px; min-height: 1000px; opacity: 0; pointer-events: none; z-index: -9999;';
+        document.body.appendChild(renderContainer);
       }
       try {
-        const result = await mermaid.render(diagId, mermaidCode, sandbox);
+        const result = await mermaid.render(diagId, mermaidCode, renderContainer);
         renderedSvg = result?.svg || '';
       } catch (err) {
         console.warn('Mermaid render error:', err);
         renderedSvg = `<div class="mermaid-error"><p><strong>Diagram Error:</strong> ${escapeHtml(err.message || 'Syntax error')}</p><pre>${escapeHtml(mermaidCode)}</pre></div>`;
       } finally {
-        if (sandbox) sandbox.innerHTML = '';
+        if (renderContainer) renderContainer.innerHTML = '';
         const svgEl = document.getElementById(diagId);
         if (svgEl) svgEl.remove();
         const wrapperEl = document.getElementById(`d${diagId}`);
         if (wrapperEl) wrapperEl.remove();
-        document.querySelectorAll('body > [id^="dmermaid"], body > [id^="mermaid"]').forEach(el => el.remove());
       }
     }
 
