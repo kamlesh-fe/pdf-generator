@@ -3,17 +3,7 @@ import { TEMPLATES, MARKDOWN_TEMPLATES } from './templates.js';
 import { compileMarkdown } from './markdownEngine.js';
 import { MARKDOWN_THEMES } from './markdownThemes.js';
 import { toPng } from 'html-to-image';
-import Prism from 'prismjs';
-globalThis.Prism = Prism;
-import 'prismjs/components/prism-markup.js';
-import 'prismjs/components/prism-css.js';
-import 'prismjs/components/prism-javascript.js';
-import 'prismjs/components/prism-markdown.js';
-import 'prismjs/components/prism-typescript.js';
-import 'prismjs/components/prism-python.js';
-import 'prismjs/components/prism-json.js';
-import 'prismjs/components/prism-bash.js';
-import 'prismjs/components/prism-yaml.js';
+import Prism from './prismSetup.js';
 import beautify from 'js-beautify';
 
 const htmlBeautify = beautify.html || beautify.html_beautify || beautify;
@@ -195,17 +185,13 @@ function setupEventListeners() {
   // Live Editor input with debouncing, syntax highlight, format auto-detection, and auto-save
   htmlEditor.addEventListener('input', () => {
     const val = htmlEditor.value;
-    // Auto-switch mode if user starts a new document with distinct format syntax
-    if (currentMode === 'html' && val.length >= 3 && val.length <= 80) {
-      if (val.startsWith('# ') || val.startsWith('---') || val.startsWith('> [!')) {
-        switchFormatMode('markdown', true);
-        return;
-      }
-    } else if (currentMode === 'markdown' && val.length >= 8 && val.length <= 80) {
-      if (/^<!DOCTYPE/i.test(val.trim()) || /^<html/i.test(val.trim())) {
-        switchFormatMode('html', true);
-        return;
-      }
+    
+    // Intelligent auto-detection of document format on any input/paste
+    const detected = detectDocumentFormat(val);
+    if (detected && detected !== currentMode) {
+      switchFormatMode(detected, true);
+      showToast(`Auto-detected ${detected === 'markdown' ? 'Markdown' : 'HTML'} format`, 'info');
+      return;
     }
 
     updateSyntaxHighlight();
@@ -219,8 +205,32 @@ function setupEventListeners() {
     autoSaveTimer = setTimeout(saveToLocalStorage, 600);
   });
 
-  // Paste handler with automatic format detection
-  htmlEditor.addEventListener('paste', () => {
+  // Paste handler with clipboard image support and automatic format detection
+  htmlEditor.addEventListener('paste', (e) => {
+    // 1. Check for clipboard image files (PNG/JPEG/WebP screenshots directly from clipboard)
+    if (e.clipboardData && e.clipboardData.items) {
+      for (const item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const dataUrl = event.target.result;
+              const imgMarkdown = currentMode === 'markdown'
+                ? `\n![Pasted Image](${dataUrl})\n`
+                : `\n<figure style="text-align:center;"><img src="${dataUrl}" alt="Pasted Image" style="max-width: 100%; height: auto; border-radius: 6px;" /></figure>\n`;
+              insertTextAtCursor(imgMarkdown);
+              showToast("Pasted image from clipboard", 'success');
+            };
+            reader.readAsDataURL(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Format auto-detection for text paste
     setTimeout(() => {
       const content = htmlEditor.value;
       const detected = detectDocumentFormat(content);
@@ -228,7 +238,7 @@ function setupEventListeners() {
         switchFormatMode(detected, true);
         showToast(`Auto-detected ${detected === 'markdown' ? 'Markdown' : 'HTML'} format`, 'info');
       }
-    }, 50);
+    }, 40);
   });
 
   // Synchronize scroll position across highlight layer and line numbers
@@ -430,19 +440,36 @@ function detectDocumentFormat(text) {
   const hasYamlFrontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n/.test(trimmed);
   const hasMarkdownHeadings = /(?:^|\n)#{1,6}\s+[\w\d]/m.test(trimmed);
   const hasGithubAlerts = /(?:^|\n)>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/im.test(trimmed);
-  const hasMermaidFences = /(?:^|\n)```(?:mermaid|js|javascript|ts|typescript|python|bash|css|json)/m.test(trimmed);
+  const hasMermaidFences = /(?:^|\n)```(?:mermaid|flowchart|sequenceDiagram|classDiagram)/im.test(trimmed);
+  const hasAnyCodeFences = /(?:^|\n)```[a-z0-9_-]*\r?\n/im.test(trimmed);
+  const hasMarkdownImages = /!\[.*?\]\(.*?\)/.test(trimmed);
+  const hasMarkdownTables = /(?:^|\n)\|[^\n\r]+\|[ \t]*\r?\n\|[-:\s|]+\|/m.test(trimmed);
   const hasTaskLists = /(?:^|\n)-\s+\[[ xX]\]\s+/m.test(trimmed);
   const hasKatexBlocks = /\$\$[\s\S]+?\$\$/.test(trimmed);
+  const hasFootnotes = /(?:^|\n)\[\^[a-zA-Z0-9_-]+\]:/.test(trimmed);
+  const hasMarkdownBullets = /(?:^|\n)[ \t]*[-*+]\s+[^\n\r]+/m.test(trimmed);
+  const hasMarkdownBoldItalic = /\*\*[^*]+\*\*|__[^_]+__/.test(trimmed);
 
-  const markdownScore = (hasYamlFrontmatter ? 3 : 0) +
-    (hasMarkdownHeadings ? 2 : 0) +
-    (hasGithubAlerts ? 2 : 0) +
-    (hasMermaidFences ? 2 : 0) +
+  const markdownScore = (hasYamlFrontmatter ? 4 : 0) +
+    (hasMarkdownHeadings ? 3 : 0) +
+    (hasGithubAlerts ? 3 : 0) +
+    (hasMermaidFences ? 3 : 0) +
+    (hasAnyCodeFences ? 2 : 0) +
+    (hasMarkdownImages ? 2 : 0) +
+    (hasMarkdownTables ? 2 : 0) +
+    (hasFootnotes ? 2 : 0) +
     (hasTaskLists ? 2 : 0) +
-    (hasKatexBlocks ? 2 : 0);
+    (hasKatexBlocks ? 2 : 0) +
+    (hasMarkdownBullets ? 1 : 0) +
+    (hasMarkdownBoldItalic ? 1 : 0);
 
   if (markdownScore >= 2 && !hasHtmlDoctype) {
     return 'markdown';
+  }
+
+  // Fallback for HTML snippets
+  if (/<(div|p|span|table|h[1-6]|ul|ol|header|footer|section)[\s>]/i.test(trimmed) && markdownScore === 0) {
+    return 'html';
   }
 
   return null;
@@ -829,6 +856,18 @@ function handleMarkdownToolAction(action) {
       replacement = `\n> [!NOTE]\n> ${selected || 'Key background context or system guidance note.'}\n`;
       cursorOffset = replacement.length;
       break;
+    case 'image':
+      replacement = `\n![${selected || 'System Architecture Overview|center|width=85%'}](https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=900 "System Architecture Diagram")\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'footnote':
+      replacement = `[^1]\n\n[^1]: ${selected || 'Detailed reference citation or footnote explanation.'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'highlight':
+      replacement = `==${selected || 'highlighted text'}==`;
+      cursorOffset = replacement.length;
+      break;
     case 'pagebreak':
       replacement = `\n\n<!-- pagebreak -->\n\n`;
       cursorOffset = replacement.length;
@@ -1130,12 +1169,45 @@ function handleFileUpload(e) {
   fileInput.value = '';
 }
 
+/**
+ * Insert text at the current cursor or selection in htmlEditor
+ */
+function insertTextAtCursor(text) {
+  const textarea = htmlEditor;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  if (typeof textarea.setRangeText === 'function') {
+    textarea.setRangeText(text, start, end, 'end');
+  } else {
+    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+  }
+  textarea.focus();
+  textarea.dispatchEvent(new Event('input'));
+}
+
 function loadFileContent(file) {
+  // Support local image drag-and-drop: insert as high-resolution base64 Data URL
+  if (file.type.startsWith('image/') || file.name.match(/\.(png|jpe?g|webp|gif|svg)$/i)) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      const cleanName = file.name.replace(/\.[^/.]+$/, "");
+      const imgMarkdown = currentMode === 'markdown'
+        ? `\n![${cleanName}|center|width=85%](${dataUrl} "${cleanName}")\n`
+        : `\n<figure style="text-align:center;"><img src="${dataUrl}" alt="${cleanName}" style="max-width: 100%; height: auto; border-radius: 6px;" /></figure>\n`;
+      insertTextAtCursor(imgMarkdown);
+      showToast(`Inserted local image: ${file.name}`, 'success');
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
   const isMd = file.name.match(/\.(md|markdown)$/i);
   const isHtml = file.name.match(/\.(html|htm)$/i);
 
   if (!isMd && !isHtml) {
-    showToast("Please upload an .html, .htm, .md, or .markdown file", 'error');
+    showToast("Please upload an .html, .htm, .md, .markdown, or image file", 'error');
     return;
   }
 

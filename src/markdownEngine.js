@@ -2,7 +2,7 @@ import { marked } from 'marked';
 import katex from 'katex';
 import mermaid from 'mermaid';
 import * as yaml from 'js-yaml';
-import Prism from 'prismjs';
+import Prism from './prismSetup.js';
 import { MARKDOWN_THEMES } from './markdownThemes.js';
 
 // Initialize Mermaid once
@@ -146,9 +146,77 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     content = content.replace(/\[\[?TOC\]?\]/gi, tocList);
   }
 
-  // 6. Configure Marked with Code Highlighting & Mermaid extraction
+  // 6. Inline Formatting Enhancements (Mark, Sub, Sup)
+  content = content.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
+  content = content.replace(/(?<![\\~])~([^~\s\n]+)~(?!~)/g, '<sub>$1</sub>');
+  content = content.replace(/(?<![\\\^])\^([^\^\s\n]+)\^(?!\^)/g, '<sup>$1</sup>');
+
+  // 7. Footnotes Processing
+  const footnotes = [];
+  content = content.replace(/(?:^|\n)\[\^([a-zA-Z0-9_-]+)\]:\s*([^\n]+(?:\n+(?: {4}|\t)[^\n]+)*)/g, (m, id, text) => {
+    footnotes.push({ id: id.trim(), text: text.trim() });
+    return '';
+  });
+  content = content.replace(/\[\^([a-zA-Z0-9_-]+)\]/g, (m, id) => {
+    return `<sup><a href="#fn-${id}" id="fnref-${id}" class="footnote-ref">[${id}]</a></sup>`;
+  });
+
+  // 8. Configure Marked with Code Highlighting, Image Renderer & Mermaid extraction
   const mermaidBlocks = [];
   const renderer = new marked.Renderer();
+
+  // Enhanced Image Renderer with Sizing, Alignment, Caption & Error Fallback
+  renderer.image = function(arg1, arg2, arg3) {
+    let href = '';
+    let title = '';
+    let text = '';
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      href = arg1.href || '';
+      title = arg1.title || '';
+      text = arg1.text || '';
+    } else {
+      href = arg1 || '';
+      title = arg2 || '';
+      text = arg3 || '';
+    }
+
+    let cleanHref = (href || '').trim();
+    let altText = (text || '').trim();
+    let imgTitle = (title || '').trim();
+
+    let customStyle = '';
+    let alignClass = 'align-center';
+
+    // Support sizing & alignment syntax in alt: ![alt|500x300](url) or ![alt|width=300](url) or ![alt|center](url)
+    if (altText.includes('|')) {
+      const parts = altText.split('|');
+      altText = parts[0].trim();
+      const meta = parts.slice(1).join(' ').trim().toLowerCase();
+
+      if (meta.includes('left')) alignClass = 'align-left';
+      else if (meta.includes('right')) alignClass = 'align-right';
+      else if (meta.includes('center')) alignClass = 'align-center';
+
+      const dimMatch = meta.match(/(\d+)x(\d+)/);
+      const widthMatch = meta.match(/(?:width=|w=)?(\d+(?:%|px)?)/);
+      if (dimMatch) {
+        customStyle = `width: ${dimMatch[1]}px; height: ${dimMatch[2]}px;`;
+      } else if (widthMatch) {
+        const w = widthMatch[1].endsWith('%') || widthMatch[1].endsWith('px') ? widthMatch[1] : `${widthMatch[1]}px`;
+        customStyle = `width: ${w};`;
+      }
+    }
+
+    const caption = imgTitle || (altText && !/^image(\.\w+)?$/i.test(altText) ? altText : '');
+
+    return `
+      <figure class="markdown-image-wrapper ${alignClass}">
+        <img src="${escapeHtml(cleanHref)}" alt="${escapeHtml(altText)}" ${imgTitle ? `title="${escapeHtml(imgTitle)}"` : ''} class="markdown-image" style="${customStyle}" loading="lazy" onerror="this.onerror=null;this.classList.add('img-error');this.alt='[Image: ' + (this.alt || 'Unavailable') + ']';" />
+        ${caption ? `<figcaption class="image-caption">${escapeHtml(caption)}</figcaption>` : ''}
+      </figure>
+    `;
+  };
 
   renderer.code = function(arg1, arg2) {
     let text = '';
@@ -160,7 +228,8 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       text = arg1 || '';
       lang = arg2 || '';
     }
-    const language = (lang || '').toLowerCase().trim();
+    const rawLang = (lang || '').trim();
+    const language = rawLang.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
     // Check for Mermaid diagram
     if (language === 'mermaid') {
@@ -169,27 +238,36 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       return `@@@MERMAID_BLOCK_${idx}@@@`;
     }
 
-    // Prism Code Syntax Highlighting
+    // Prism Code Syntax Highlighting with Language Aliases
     let highlighted = escapeHtml(text);
-    if (Prism.languages[language]) {
+    const aliasMap = {
+      'js': 'javascript',
+      'ts': 'typescript',
+      'py': 'python',
+      'rb': 'ruby',
+      'cs': 'csharp',
+      'c++': 'cpp',
+      'sh': 'bash',
+      'shell': 'bash',
+      'zsh': 'bash',
+      'yml': 'yaml',
+      'dockerfile': 'docker',
+      'kt': 'kotlin'
+    };
+    const resolvedLang = aliasMap[language] || language;
+
+    if (Prism.languages[resolvedLang]) {
       try {
-        highlighted = Prism.highlight(text, Prism.languages[language], language);
+        highlighted = Prism.highlight(text, Prism.languages[resolvedLang], resolvedLang);
       } catch (e) {}
-    } else if (language === 'html' || language === 'xml' || language === 'svg') {
+    } else if (resolvedLang === 'html' || resolvedLang === 'xml' || resolvedLang === 'svg') {
       try {
         highlighted = Prism.highlight(text, Prism.languages.markup, 'markup');
       } catch (e) {}
-    } else if (language === 'js' || language === 'javascript') {
-      try {
-        highlighted = Prism.highlight(text, Prism.languages.javascript, 'javascript');
-      } catch (e) {}
-    } else if (language === 'css') {
-      try {
-        highlighted = Prism.highlight(text, Prism.languages.css, 'css');
-      } catch (e) {}
     }
 
-    return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${language || 'code'}</span></div><pre><code class="language-${language}">${highlighted}</code></pre></div>`;
+    const displayLang = resolvedLang || 'code';
+    return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${displayLang}</span></div><pre><code class="language-${displayLang}">${highlighted}</code></pre></div>`;
   };
 
   // Checkbox Task Lists
@@ -221,6 +299,16 @@ export async function compileMarkdown(markdownRaw, options = {}) {
   });
 
   let htmlBody = await marked.parse(content);
+
+  // Append Footnotes Section if any
+  if (footnotes.length > 0) {
+    let fnHtml = '<section class="footnotes"><hr class="footnotes-sep"><ol class="footnotes-list">';
+    for (const fn of footnotes) {
+      fnHtml += `<li id="fn-${fn.id}"><p>${fn.text} <a href="#fnref-${fn.id}" class="footnote-backref" title="Back to reference">&#8617;</a></p></li>`;
+    }
+    fnHtml += '</ol></section>';
+    htmlBody += fnHtml;
+  }
 
   // 7. Render Mermaid Diagrams Asynchronously
   for (let i = 0; i < mermaidBlocks.length; i++) {
@@ -480,6 +568,174 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     }
     .katex {
       font-size: 1.08em;
+    }
+
+    /* Markdown Images & Figures */
+    .markdown-image-wrapper {
+      margin: 16px 0;
+      page-break-inside: avoid;
+    }
+    .markdown-image-wrapper.align-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .markdown-image-wrapper.align-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+    }
+    .markdown-image-wrapper.align-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+    }
+    .markdown-image,
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e2e8f0;
+      object-fit: contain;
+    }
+    .markdown-image.img-error {
+      display: inline-block;
+      padding: 12px 18px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      color: #64748b;
+      font-size: 9pt;
+      font-family: monospace;
+      min-width: 200px;
+    }
+    .image-caption {
+      margin-top: 6px;
+      font-size: 8.5pt;
+      color: #64748b;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    /* Footnotes */
+    .footnote-ref {
+      font-size: 0.75em;
+      vertical-align: super;
+      text-decoration: none;
+      color: #2563eb;
+      font-weight: 600;
+      padding: 0 2px;
+    }
+    .footnotes {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8.5pt;
+      color: #64748b;
+      page-break-inside: avoid;
+    }
+    .footnotes-sep {
+      display: none;
+    }
+    .footnotes-list {
+      padding-left: 20px;
+      margin: 0;
+    }
+    .footnotes-list li {
+      margin-bottom: 6px;
+    }
+    .footnote-backref {
+      text-decoration: none;
+      color: #2563eb;
+      margin-left: 4px;
+    }
+
+    /* Inline Elements: Mark, Kbd, Sub, Sup */
+    mark {
+      background-color: #fef08a;
+      color: #1f2937;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    kbd {
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-bottom: 2px solid #94a3b8;
+      border-radius: 4px;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+      color: #334155;
+      display: inline-block;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.82em;
+      line-height: 1;
+      padding: 2px 5px;
+      white-space: nowrap;
+    }
+    sub, sup {
+      font-size: 75%;
+      line-height: 0;
+      position: relative;
+      vertical-align: baseline;
+    }
+    sup { top: -0.5em; }
+    sub { bottom: -0.25em; }
+
+    /* Syntax Highlighting Tokens (Vibrant IDE Colors in Preview & PDF) */
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+      color: #6e7781;
+      font-style: italic;
+    }
+    .token.punctuation {
+      color: #24292f;
+    }
+    .token.property,
+    .token.tag,
+    .token.constant,
+    .token.symbol,
+    .token.deleted {
+      color: #0550ae;
+    }
+    .token.boolean,
+    .token.number {
+      color: #0550ae;
+    }
+    .token.selector,
+    .token.attr-name,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.inserted {
+      color: #0a3069;
+    }
+    .token.operator,
+    .token.entity,
+    .token.url,
+    .language-css .token.string,
+    .style .token.string {
+      color: #cf222e;
+    }
+    .token.atrule,
+    .token.attr-value,
+    .token.keyword {
+      color: #cf222e;
+      font-weight: 600;
+    }
+    .token.function,
+    .token.class-name {
+      color: #8250df;
+      font-weight: 600;
+    }
+    .token.regex,
+    .token.important,
+    .token.variable {
+      color: #953800;
     }
   </style>
 </head>
