@@ -322,21 +322,23 @@
           <span id="page-badge" class="page-badge">A4 Portrait</span>
           
           <div class="zoom-bar">
-            <button id="zoom-out" class="zoom-btn" title="Zoom Out">&minus;</button>
-            <span id="zoom-value" class="zoom-value">100%</span>
-            <button id="zoom-in" class="zoom-btn" title="Zoom In">&plus;</button>
-            <button id="zoom-reset" class="zoom-btn reset-btn" title="Auto Fit Width">Fit</button>
+            <button id="zoom-out" class="zoom-btn" title="Zoom Out (Ctrl+-)" aria-label="Zoom Out">&minus;</button>
+            <span id="zoom-value" class="zoom-value" title="Click to reset to 100%">100%</span>
+            <button id="zoom-in" class="zoom-btn" title="Zoom In (Ctrl++)" aria-label="Zoom In">&plus;</button>
+            <button id="zoom-reset" class="zoom-btn reset-btn" title="Auto Fit Width (Ctrl+0)">Fit</button>
           </div>
         </div>
       </div>
 
       <div class="preview-viewport" id="preview-viewport">
-        <div class="paper-container" id="paper-container">
-          <div class="paper-sheet a4 portrait" id="paper-sheet">
-            <!-- Dynamic Page Break Guide Overlay Lines -->
-            <div id="page-guides-overlay" class="page-guides-overlay"></div>
-            <!-- Document Iframe -->
-            <iframe id="preview-frame" title="PDF Document Live Preview"></iframe>
+        <div class="paper-scale-wrapper" id="paper-scale-wrapper">
+          <div class="paper-container" id="paper-container">
+            <div class="paper-sheet a4 portrait" id="paper-sheet">
+              <!-- Dynamic Page Break Guide Overlay Lines -->
+              <div id="page-guides-overlay" class="page-guides-overlay"></div>
+              <!-- Document Iframe -->
+              <iframe id="preview-frame" title="PDF Document Live Preview"></iframe>
+            </div>
           </div>
         </div>
       </div>

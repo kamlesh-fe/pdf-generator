@@ -14,6 +14,7 @@ let currentMdTheme = 'github';
 let compiledHtmlCache = '';
 let updateCounter = 0;
 let currentZoom = 1.0;
+let isAutoFit = true;
 let debounceTimer = null;
 let autoSaveTimer = null;
 let isFilenameUserModified = false;
@@ -28,6 +29,7 @@ const lineNumbers = document.getElementById('line-numbers');
 const previewFrame = document.getElementById('preview-frame');
 const paperSheet = document.getElementById('paper-sheet');
 const paperContainer = document.getElementById('paper-container');
+const paperScaleWrapper = document.getElementById('paper-scale-wrapper');
 const templateSelect = document.getElementById('template-select');
 const fileInput = document.getElementById('file-input');
 const clearBtn = document.getElementById('clear-btn');
@@ -311,10 +313,43 @@ function setupEventListeners() {
   // Zoom controls
   zoomInBtn.addEventListener('click', () => changeZoom(0.1));
   zoomOutBtn.addEventListener('click', () => changeZoom(-0.1));
-  zoomResetBtn.addEventListener('click', fitToWidth);
+  zoomResetBtn.addEventListener('click', () => {
+    isAutoFit = true;
+    fitToWidth();
+  });
 
-  // Auto-fit on window resize
-  window.addEventListener('resize', fitToWidth);
+  if (zoomValue) {
+    zoomValue.addEventListener('click', () => {
+      isAutoFit = false;
+      if (Math.abs(currentZoom - 1.0) < 0.05) {
+        isAutoFit = true;
+        fitToWidth();
+      } else {
+        currentZoom = 1.0;
+        applyZoom();
+      }
+    });
+  }
+
+  // Ctrl+MouseWheel zooming on preview viewport
+  if (previewViewport) {
+    previewViewport.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        changeZoom(delta, { x: e.clientX, y: e.clientY });
+      }
+    }, { passive: false });
+  }
+
+  // Auto-fit on window resize (only when in auto-fit mode)
+  window.addEventListener('resize', () => {
+    if (isAutoFit) {
+      fitToWidth();
+    } else {
+      applyZoom();
+    }
+  });
 
   // Actions
   downloadBtn.addEventListener('click', handleDownloadPDF);
@@ -330,6 +365,25 @@ function setupEventListeners() {
  * Handle Global Keyboard Shortcuts
  */
 function handleGlobalKeydown(e) {
+  // Ctrl+= / Ctrl++: Zoom in
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+    e.preventDefault();
+    changeZoom(0.1);
+    return;
+  }
+  // Ctrl+- / Ctrl+_: Zoom out
+  if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+    e.preventDefault();
+    changeZoom(-0.1);
+    return;
+  }
+  // Ctrl+0: Auto fit to width
+  if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+    e.preventDefault();
+    isAutoFit = true;
+    fitToWidth();
+    return;
+  }
   // Ctrl+S / Cmd+S: Quick Download PDF
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
     e.preventDefault();
@@ -975,6 +1029,19 @@ async function updatePreview() {
     }
   } catch (e) {}
 
+  // Forward Ctrl+Wheel zoom and keyboard shortcuts from iframe document to parent window
+  try {
+    doc.addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const frameRect = previewFrame.getBoundingClientRect();
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        changeZoom(delta, { x: frameRect.left + e.clientX, y: frameRect.top + e.clientY });
+      }
+    }, { passive: false });
+    doc.addEventListener('keydown', handleGlobalKeydown);
+  } catch (e) {}
+
   // Apply scale to preview iframe for HTML mode (Markdown handles zoom natively in compiled CSS)
   if (currentMode === 'html') {
     applyScaleToPreview();
@@ -1050,6 +1117,9 @@ function adjustIframeHeight() {
 
     // Render Page Break Guides
     renderPageGuides(finalHeight, heightPx, totalPages);
+
+    // Keep zoom container layout bounds strictly synchronized with paper height
+    applyZoom();
   } catch (err) {
     console.warn("Could not calculate preview height", err);
   }
@@ -1122,23 +1192,85 @@ function fitToWidth() {
   const paperWidth = paperSheet.offsetWidth || 794;
   if (viewportWidth > 0 && paperWidth > 0) {
     let scale = viewportWidth / paperWidth;
-    scale = Math.min(1.0, Math.max(0.35, Math.floor(scale * 100) / 100));
+    scale = Math.min(4.0, Math.max(0.25, Math.floor(scale * 100) / 100));
     currentZoom = scale;
     applyZoom();
+    if (previewViewport) {
+      previewViewport.scrollLeft = 0;
+    }
   }
 }
 
 /**
- * Zoom controls
+ * Zoom controls supporting smooth stepping up to 400% zoom with anchor-point preservation
  */
-function changeZoom(delta) {
-  currentZoom = Math.min(Math.max(0.4, currentZoom + delta), 2.0);
-  applyZoom();
+function changeZoom(delta, originPoint = null) {
+  isAutoFit = false;
+  const prevZoom = currentZoom;
+  let newZoom;
+
+  if (typeof delta === 'number') {
+    let step;
+    if (delta > 0) {
+      step = currentZoom >= 1.99 ? 0.25 : (currentZoom >= 1.19 ? 0.2 : 0.1);
+    } else {
+      step = currentZoom > 2.01 ? 0.25 : (currentZoom > 1.21 ? 0.2 : 0.1);
+    }
+    const actualDelta = Math.abs(delta) === 0.1 ? (delta > 0 ? step : -step) : delta;
+    newZoom = Math.round((currentZoom + actualDelta) * 100) / 100;
+  } else {
+    newZoom = currentZoom;
+  }
+
+  newZoom = Math.min(Math.max(0.25, newZoom), 4.0);
+  if (Math.abs(newZoom - prevZoom) < 0.005) return;
+
+  if (previewViewport) {
+    const rect = previewViewport.getBoundingClientRect();
+    const anchorX = originPoint ? (originPoint.x - rect.left) : (previewViewport.clientWidth / 2);
+    const anchorY = originPoint ? (originPoint.y - rect.top) : (previewViewport.clientHeight / 2);
+
+    const scrollX = previewViewport.scrollLeft;
+    const scrollY = previewViewport.scrollTop;
+    const ratio = newZoom / prevZoom;
+
+    currentZoom = newZoom;
+    applyZoom();
+
+    previewViewport.scrollLeft = Math.max(0, (scrollX + anchorX) * ratio - anchorX);
+    previewViewport.scrollTop = Math.max(0, (scrollY + anchorY) * ratio - anchorY);
+  } else {
+    currentZoom = newZoom;
+    applyZoom();
+  }
 }
 
 function applyZoom() {
-  paperContainer.style.transform = `scale(${currentZoom})`;
-  zoomValue.textContent = `${Math.round(currentZoom * 100)}%`;
+  const paperW = paperSheet ? (paperSheet.offsetWidth || 794) : 794;
+  const paperH = paperSheet ? (paperSheet.offsetHeight || 1123) : 1123;
+
+  if (paperContainer) {
+    paperContainer.style.width = `${paperW}px`;
+    paperContainer.style.height = `${paperH}px`;
+    paperContainer.style.transform = `scale(${currentZoom})`;
+    paperContainer.style.transformOrigin = 'top left';
+  }
+
+  if (paperScaleWrapper) {
+    paperScaleWrapper.style.width = `${Math.round(paperW * currentZoom)}px`;
+    paperScaleWrapper.style.height = `${Math.round(paperH * currentZoom)}px`;
+  }
+
+  if (zoomValue) {
+    zoomValue.textContent = `${Math.round(currentZoom * 100)}%`;
+  }
+
+  if (zoomInBtn) {
+    zoomInBtn.disabled = currentZoom >= 3.999;
+  }
+  if (zoomOutBtn) {
+    zoomOutBtn.disabled = currentZoom <= 0.251;
+  }
 }
 
 /**
