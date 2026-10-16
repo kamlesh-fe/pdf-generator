@@ -11,7 +11,17 @@ try {
     startOnLoad: false,
     theme: 'default',
     securityLevel: 'loose',
-    fontFamily: 'Inter, sans-serif'
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: 12.5,
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      wrappingWidth: 350,
+      nodeSpacing: 18,
+      rankSpacing: 22,
+      padding: 8,
+      curve: 'basis'
+    }
   });
 } catch (e) {
   console.warn('Mermaid initialization warning:', e);
@@ -573,8 +583,8 @@ export async function compileMarkdown(markdownRaw, options = {}) {
 
     /* Code Blocks Splitting & Line Wrapping */
     .code-block-wrapper {
-      break-inside: auto !important;
-      page-break-inside: auto !important;
+      break-inside: avoid;
+      page-break-inside: avoid;
       margin: 10px 0 12px 0;
       overflow: visible;
     }
@@ -586,14 +596,13 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     pre code,
     code {
       white-space: pre-wrap !important;
-      word-break: break-word !important;
-      overflow-wrap: break-word !important;
+      word-break: normal !important;
+      overflow-wrap: normal !important;
     }
     pre {
-      break-inside: auto !important;
-      page-break-inside: auto !important;
-      overflow: visible;
-      line-height: 1.4;
+      overflow-x: hidden !important;
+      line-height: 1.38;
+      font-size: 8.2pt;
       orphans: 3;
       widows: 3;
     }
@@ -612,14 +621,15 @@ export async function compileMarkdown(markdownRaw, options = {}) {
     .mermaid-diagram-wrapper svg {
       display: block;
       max-width: 100% !important;
-      max-height: 200mm !important;
+      max-height: 250mm !important;
       width: auto !important;
       height: auto !important;
-      object-fit: contain;
     }
     @media screen {
       .mermaid-diagram-wrapper svg {
-        max-height: 650px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        height: auto !important;
       }
     }
     @media print {
@@ -629,8 +639,9 @@ export async function compileMarkdown(markdownRaw, options = {}) {
         overflow: visible !important;
       }
       .mermaid-diagram-wrapper svg {
+        display: block !important;
         max-width: 100% !important;
-        max-height: 195mm !important;
+        max-height: 250mm !important;
         width: auto !important;
         height: auto !important;
       }
@@ -683,19 +694,16 @@ export async function compileMarkdown(markdownRaw, options = {}) {
       .mermaid-diagram-wrapper,
       .katex-display-wrapper,
       main.markdown-body {
-        overflow: visible !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
+        overflow-x: hidden !important;
       }
       .code-block-wrapper {
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       pre {
-        break-inside: auto !important;
-        page-break-inside: auto !important;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
       }
       h1, h2, h3, h4, h5, h6 {
         break-after: avoid !important;

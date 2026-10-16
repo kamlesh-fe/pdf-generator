@@ -57,8 +57,8 @@ export const MARKDOWN_THEMES = {
         border-radius: 6px;
         margin: 10px 0 12px 0;
         overflow: visible;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       .code-block-header {
         background: #eaeef2;
@@ -74,16 +74,14 @@ export const MARKDOWN_THEMES = {
       }
       pre {
         padding: 8px 12px;
-        overflow: visible;
+        overflow-x: hidden !important;
         font-family: "JetBrains Mono", monospace;
-        font-size: 8.5pt;
-        line-height: 1.45;
+        font-size: 8.2pt;
+        line-height: 1.38;
         margin: 0;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
       }
       table {
         width: 100%;
@@ -176,24 +174,23 @@ export const MARKDOWN_THEMES = {
         margin: 10px 0;
         border-radius: 4px;
         overflow: visible;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       pre {
         font-family: "JetBrains Mono", Consolas, monospace;
-        font-size: 8.5pt;
+        font-size: 8.2pt;
+        line-height: 1.38;
         padding: 8px 12px;
         margin: 0;
-        overflow: visible;
+        overflow-x: hidden !important;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
       }
       pre code {
         white-space: pre-wrap !important;
-        word-break: break-word !important;
+        word-break: normal !important;
       }
       .katex-display {
         margin: 12px 0 !important;
@@ -264,8 +261,8 @@ export const MARKDOWN_THEMES = {
         color: #f8fafc;
         margin: 10px 0 12px 0;
         overflow: visible;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       .code-block-header {
         background: #1e293b;
@@ -281,22 +278,20 @@ export const MARKDOWN_THEMES = {
         padding: 8px 12px;
         margin: 0;
         color: #f1f5f9;
-        font-size: 8.5pt;
+        font-size: 8.2pt;
         font-family: "JetBrains Mono", monospace;
-        line-height: 1.45;
-        overflow: visible;
+        line-height: 1.38;
+        overflow-x: hidden !important;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
       }
       code {
         background: #f1f5f9;
         color: #0f172a;
         padding: 1px 4px;
         border-radius: 4px;
-        font-size: 8.5pt;
+        font-size: 8.2pt;
         font-family: "JetBrains Mono", monospace;
         word-break: break-word;
       }
@@ -305,7 +300,7 @@ export const MARKDOWN_THEMES = {
         color: inherit;
         padding: 0;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
+        word-break: normal !important;
       }
     `
   },
@@ -357,24 +352,22 @@ export const MARKDOWN_THEMES = {
         padding: 8px 12px;
         margin: 10px 0;
         overflow: visible;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
       pre {
         margin: 0;
         font-family: "JetBrains Mono", monospace;
-        font-size: 8.5pt;
-        line-height: 1.45;
-        overflow: visible;
+        font-size: 8.2pt;
+        line-height: 1.38;
+        overflow-x: hidden !important;
         white-space: pre-wrap !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
-        break-inside: auto !important;
-        page-break-inside: auto !important;
+        word-break: normal !important;
+        overflow-wrap: normal !important;
       }
       pre code {
         white-space: pre-wrap !important;
-        word-break: break-word !important;
+        word-break: normal !important;
       }
     `
   }
